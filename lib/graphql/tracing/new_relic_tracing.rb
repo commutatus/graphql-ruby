@@ -37,9 +37,12 @@ module GraphQL
           puts "OP Type : #{op_type}"
           puts "OP Name : #{op_name}"
           puts "================================================================================"
-          
+
           NewRelic::Agent.set_transaction_name("GraphQL/#{op_type}.#{op_name}")
         end
+        puts "===================================================="
+        puts "INSIDE PLATFORM TRACE"
+        puts "===================================================="
 
         NewRelic::Agent::MethodTracerHelpers.trace_execution_scoped(platform_key) do
           yield
