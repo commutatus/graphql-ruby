@@ -33,7 +33,11 @@ module GraphQL
             op_type = "query"
             op_name = "anonymous"
           end
-
+          puts "================================================================================"
+          puts "OP Type : #{op_type}"
+          puts "OP Name : #{op_name}"
+          puts "================================================================================"
+          
           NewRelic::Agent.set_transaction_name("GraphQL/#{op_type}.#{op_name}")
         end
 
