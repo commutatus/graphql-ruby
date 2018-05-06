@@ -17,6 +17,7 @@ module GraphQL
       def platform_trace(platform_key, key, data)
         begin
           if key == 'execute_query'
+            byebug
             operation_type = data[:context].query.selected_operation.operation_type
             operation_name = data[:context].query.selected_operation.selections.first.name
             NewRelic::Agent.set_transaction_name("GraphQL/#{operation_type}.#{operation_name}.#{key}")
