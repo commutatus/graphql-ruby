@@ -16,6 +16,9 @@ module GraphQL
 
       def platform_trace(platform_key, key, data)
         begin
+          if key == 'execute_field'
+            byebug
+          end
           if key == 'execute_multiplex' && data.key?(:multiplex) && data[:multiplex].queries.count == 1
             operation_type = data[:multiplex].queries.first.selected_operation.operation_type
             operation_name = data[:multiplex].queries.first.selected_operation.selections.first.name
