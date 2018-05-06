@@ -15,7 +15,18 @@ module GraphQL
       }
 
       def platform_trace(platform_key, key, data)
-        byebug
+        begin
+          if key == 'execute_multiplex' && data.key?[:multiplex] && data[:multiplex].queries.count == 1
+            operation_type = data[:multiplex].queries.first.selected_operation.operation_type
+            operation_name = data[:multiplex].queries.first.selected_operation.selections.first.name
+          else
+            operation_type = "UnknownType"
+            operation_name = "UnknownName"
+          end
+          NewRelic::Agent.set_transaction_name("GraphQL/#{operation_type}.#{operation_name}")
+        rescue
+          puts "Issue with GraphQL Instrumentation"
+        end
         NewRelic::Agent::MethodTracerHelpers.trace_execution_scoped(platform_key) do
           yield
         end
