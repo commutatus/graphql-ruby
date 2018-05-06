@@ -19,7 +19,13 @@ module GraphQL
           if key == 'execute_query'
             operation_type = data[:context].query.selected_operation.operation_type
             operation_name = data[:context].query.selected_operation.selections.first.name
-            NewRelic::Agent.set_transaction_name("GraphQL/#{operation_type}.#{operation_name}")
+            NewRelic::Agent.set_transaction_name("GraphQL/#{operation_type}.#{operation_name}.#{key}")
+            puts "================================================="
+            puts "KEY: #{key}"
+            puts "OPERATION TYPE: #{operation_type}"
+            puts "OPERATION NAME: #{operation_name}"
+            puts "TRANSACTION NAME IS SET!"
+            puts "================================================="
           else
             operation_type = "UnknownType"
             operation_name = "UnknownName"
@@ -29,7 +35,7 @@ module GraphQL
             puts "OPERATION TYPE: #{operation_type}"
             puts "OPERATION NAME: #{operation_name}"
             puts "================================================="
-            NewRelic::Agent.set_transaction_name("GraphQL/#{operation_type}.#{operation_name}")
+            NewRelic::Agent.set_transaction_name("GraphQL/#{operation_type}.#{operation_name}.#{key}")
           end
           
         rescue
