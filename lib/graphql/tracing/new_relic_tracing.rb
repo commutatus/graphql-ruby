@@ -22,7 +22,7 @@ module GraphQL
       end
 
       def platform_trace(platform_key, key, data)
-        if @set_transaction_name && platform_key == "execute_query"
+        if @set_transaction_name && key == "execute_query"
           query = data[:query]
           # Set the transaction name based on the operation type and name
           selected_op = query.selected_operation
