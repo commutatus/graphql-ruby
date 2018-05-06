@@ -26,18 +26,7 @@ module GraphQL
             puts "OPERATION NAME: #{operation_name}"
             puts "TRANSACTION NAME IS SET!"
             puts "================================================="
-          else
-            operation_type = "UnknownType"
-            operation_name = "UnknownName"
-            puts "================================================="
-            puts "KEY: #{key}"
-            puts "MULTIPLEX: #{data.key?(:multiplex)}"
-            puts "OPERATION TYPE: #{operation_type}"
-            puts "OPERATION NAME: #{operation_name}"
-            puts "================================================="
-            NewRelic::Agent.set_transaction_name("GraphQL/#{operation_type}.#{operation_name}.#{key}")
-          end
-          
+          end       
         rescue
           puts "Issue with GraphQL Instrumentation"
         end
