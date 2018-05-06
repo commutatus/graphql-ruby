@@ -27,8 +27,11 @@ module GraphQL
             puts "TRANSACTION NAME IS SET!"
             puts "================================================="
           end       
-        rescue
+        rescue => e
+          puts "================================================="
           puts "Issue with GraphQL Instrumentation"
+          puts "Error: #{e}"
+          puts "================================================="
         end
         NewRelic::Agent::MethodTracerHelpers.trace_execution_scoped(platform_key) do
           yield
