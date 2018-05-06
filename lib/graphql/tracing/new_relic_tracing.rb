@@ -16,7 +16,7 @@ module GraphQL
 
       def platform_trace(platform_key, key, data)
         begin
-          if key == 'execute_field'
+          if key == 'execute_query'
             operation_type = data[:context].query.selected_operation.operation_type
             operation_name = data[:context].query.selected_operation.selections.first.name
             NewRelic::Agent.set_transaction_name("GraphQL/#{operation_type}.#{operation_name}")
@@ -26,7 +26,6 @@ module GraphQL
             puts "================================================="
             puts "KEY: #{key}"
             puts "MULTIPLEX: #{data.key?(:multiplex)}"
-            puts "QUERY COUNT: #{data[:multiplex].queries.count}"
             puts "OPERATION TYPE: #{operation_type}"
             puts "OPERATION NAME: #{operation_name}"
             puts "================================================="
