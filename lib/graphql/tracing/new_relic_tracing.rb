@@ -17,23 +17,22 @@ module GraphQL
       def platform_trace(platform_key, key, data)
         begin
           if key == 'execute_field'
-            byebug
-          end
-          if key == 'execute_multiplex' && data.key?(:multiplex) && data[:multiplex].queries.count == 1
-            operation_type = data[:multiplex].queries.first.selected_operation.operation_type
-            operation_name = data[:multiplex].queries.first.selected_operation.selections.first.name
+            operation_type = data[:context].query.selected_operation.operation_type
+            operation_name = data[:context].query.selected_operation.selections.first.name
+            NewRelic::Agent.set_transaction_name("GraphQL/#{operation_type}.#{operation_name}")
           else
             operation_type = "UnknownType"
             operation_name = "UnknownName"
+            puts "================================================="
+            puts "KEY: #{key}"
+            puts "MULTIPLEX: #{data.key?(:multiplex)}"
+            puts "QUERY COUNT: #{data[:multiplex].queries.count}"
+            puts "OPERATION TYPE: #{operation_type}"
+            puts "OPERATION NAME: #{operation_name}"
+            puts "================================================="
+            NewRelic::Agent.set_transaction_name("GraphQL/#{operation_type}.#{operation_name}")
           end
-          puts "================================================="
-          puts "KEY: #{key}"
-          puts "MULTIPLEX: #{data.key?(:multiplex)}"
-          puts "QUERY COUNT: #{data[:multiplex].queries.count}"
-          puts "OPERATION TYPE: #{operation_type}"
-          puts "OPERATION NAME: #{operation_name}"
-          puts "================================================="
-          NewRelic::Agent.set_transaction_name("GraphQL/#{operation_type}.#{operation_name}")
+          
         rescue
           puts "Issue with GraphQL Instrumentation"
         end
