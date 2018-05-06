@@ -19,13 +19,7 @@ module GraphQL
           if key == 'execute_query'
             operation_type = data[:query].selected_operation.operation_type
             operation_name = data[:query].selected_operation.selections.first.name
-            NewRelic::Agent.set_transaction_name("GraphQL/#{operation_type}.#{operation_name}.#{key}")
-            puts "================================================="
-            puts "KEY: #{key}"
-            puts "OPERATION TYPE: #{operation_type}"
-            puts "OPERATION NAME: #{operation_name}"
-            puts "TRANSACTION NAME IS SET!"
-            puts "================================================="
+            NewRelic::Agent.set_transaction_name("GraphQL/#{operation_type}.#{operation_name}")
           end       
         rescue => e
           puts "================================================="
