@@ -25,14 +25,16 @@ module GraphQL
         if @set_transaction_name && key == "execute_query"
           query = data[:query]
           # Set the transaction name based on the operation type and name
-          selected_op = query.selected_operation
-          if selected_op
-            op_type = selected_op.operation_type
-            op_name = selected_op.name || "anonymous"
-          else
-            op_type = "query"
-            op_name = "anonymous"
-          end
+          op_type = "test"
+          op_name = "test_name"
+          # selected_op = query.selected_operation
+          # if selected_op
+          #   op_type = selected_op.operation_type
+          #   op_name = selected_op.name || "anonymous"
+          # else
+          #   op_type = "query"
+          #   op_name = "anonymous"
+          # end
           puts "================================================================================"
           puts "OP Type : #{op_type}"
           puts "OP Name : #{op_name}"

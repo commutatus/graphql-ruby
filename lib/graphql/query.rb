@@ -86,7 +86,7 @@ module GraphQL
       @operations = nil
       @validate = validate
       # TODO: remove support for global tracers
-      @tracers = schema.tracers + GraphQL::Tracing.tracers
+      @tracers = schema.tracers + GraphQL::Tracing.tracers + (context ? context.fetch(:tracers, []) : [])
       # Support `ctx[:backtrace] = true` for wrapping backtraces
       if context && context[:backtrace] && !@tracers.include?(GraphQL::Backtrace::Tracer)
         @tracers << GraphQL::Backtrace::Tracer
