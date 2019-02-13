@@ -1,5 +1,6 @@
 ---
 layout: guide
+doc_stub: false
 search: true
 section: GraphQL Pro - OperationStore
 title: Getting Started
@@ -40,7 +41,7 @@ Then open the migration file and add:
 # ...
 # implement the change method with:
 def change
-  create_table :graphql_clients do |t|
+  create_table :graphql_clients, primary_key: :id do |t|
     t.column :name, :string, null: false
     t.column :secret, :string, null: false
     t.timestamps
@@ -48,7 +49,7 @@ def change
   add_index :graphql_clients, :name, unique: true
   add_index :graphql_clients, :secret, unique: true
 
-  create_table :graphql_client_operations do |t|
+  create_table :graphql_client_operations, primary_key: :id do |t|
     t.references :graphql_client, null: false
     t.references :graphql_operation, null: false
     t.column :alias, :string, null: false
@@ -56,7 +57,7 @@ def change
   end
   add_index :graphql_client_operations, [:graphql_client_id, :alias], unique: true, name: "graphql_client_operations_pairs"
 
-  create_table :graphql_operations do |t|
+  create_table :graphql_operations, primary_key: :id do |t|
     t.column :digest, :string, null: false
     t.column :body, :text, null: false
     t.column :name, :string, null: false
@@ -64,12 +65,12 @@ def change
   end
   add_index :graphql_operations, :digest, unique: true
 
-  create_table :graphql_index_entries do |t|
+  create_table :graphql_index_entries, primary_key: :id do |t|
     t.column :name, :string, null: false
   end
   add_index :graphql_index_entries, :name, unique: true
 
-  create_table :graphql_index_references do |t|
+  create_table :graphql_index_references, primary_key: :id do |t|
     t.references :graphql_index_entry, null: false
     t.references :graphql_operation, null: false
   end
@@ -82,7 +83,7 @@ end
 To hook up the storage to your schema, add the plugin:
 
 ```ruby
-MySchema = GraphQL::Schema.define do
+class MySchema < GraphQL::Schema
   # ...
   use GraphQL::Pro::OperationStore
 end

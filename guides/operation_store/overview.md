@@ -1,5 +1,6 @@
 ---
 layout: guide
+doc_stub: false
 search: true
 section: GraphQL Pro - OperationStore
 title: Overview
@@ -22,6 +23,8 @@ In other guides, you can read more about:
 - {% internal_link "Workflow","/operation_store/client_workflow" %} and usage for client apps
 - {% internal_link "Authentication","/operation_store/access_control" %} for the sync API
 - {% internal_link "Server Management","/operation_store/server_management" %} after your system is running
+
+Also, you can find a [demo app on GitHub](https://github.com/rmosolgo/graphql-pro-operation-store-example).
 
 ### What are Persisted Queries?
 

@@ -435,8 +435,10 @@ describe GraphQL::Query do
             {
               "message" => "Variable cheeseId of type Int! was provided invalid value",
               "locations"=>[{ "line" => 2, "column" => 23 }],
-              "value" => "2",
-              "problems" => [{ "path" => [], "explanation" => 'Could not coerce value "2" to Int' }]
+              "extensions" => {
+                "value" => "2",
+                "problems" => [{ "path" => [], "explanation" => 'Could not coerce value "2" to Int' }]
+              }
             }
           ]
         }
@@ -453,8 +455,10 @@ describe GraphQL::Query do
             {
               "message" => "Variable cheeseId of type Int! was provided invalid value",
               "locations" => [{"line" => 2, "column" => 23}],
-              "value" => nil,
-              "problems" => [{ "path" => [], "explanation" => "Expected value to not be null" }]
+              "extensions" => {
+                "value" => nil,
+                "problems" => [{ "path" => [], "explanation" => "Expected value to not be null" }]
+              }
             }
           ]
         }
@@ -471,8 +475,10 @@ describe GraphQL::Query do
             {
               "message" => "Variable cheeseId of type Int! was provided invalid value",
               "locations" => [{"line" => 2, "column" => 23}],
-              "value" => nil,
-              "problems" => [{ "path" => [], "explanation" => "Expected value to not be null" }]
+              "extensions" => {
+                "value" => nil,
+                "problems" => [{ "path" => [], "explanation" => "Expected value to not be null" }]
+              }
             }
           ]
         }
@@ -635,6 +641,20 @@ describe GraphQL::Query do
       query = GraphQL::Query.new(schema, invalid_query_string, validate: true)
       assert_equal false, query.valid?
       assert_equal 1, query.static_errors.length
+    end
+  end
+
+  describe "validating with optional arguments and variables: nil" do
+    it "works" do
+      query_str = <<-GRAPHQL
+      query($expiresAfter: Time) {
+        searchDairy(expiresAfter: $expiresAfter) {
+          __typename
+        }
+      }
+      GRAPHQL
+      query = GraphQL::Query.new(schema, query_str, variables: nil)
+      assert query.valid?
     end
   end
 

@@ -1,5 +1,6 @@
 ---
 layout: guide
+doc_stub: false
 search: true
 section: Type Definitions
 title: Scalars
@@ -15,6 +16,7 @@ Scalars are "leaf" values in GraphQL. There are several built-in scalars, and yo
 - `Float`, like a JSON or Ruby floating point decimal
 - `Boolean`, like a JSON or Ruby boolean (`true` or `false`)
 - `ID`, which a specialized `String` for representing unique object identifiers
+- `ISO8601DateTime`, an ISO 8601-encoded datetime
 
 Fields can return built-in scalars by referencing them by name:
 
@@ -31,6 +33,8 @@ field :avg_points_per_game, Float, null: false
 field :is_top_ranked, Boolean, null: false
 # ID field
 field :id, ID, null: false
+# ISO8601DateTime field
+field :created_at, GraphQL::Types::ISO8601DateTime, null: false
 ```
 
 Custom scalars (see below) can also be used by name:
@@ -40,7 +44,7 @@ Custom scalars (see below) can also be used by name:
 field :homepage, Types::Url, null: true
 ```
 
-In the [Schema Definition Language](http://graphql.org/learn/schema/#type-language) (SDL), scalars are simply named:
+In the [Schema Definition Language](https://graphql.org/learn/schema/#type-language) (SDL), scalars are simply named:
 
 ```ruby
 scalar DateTime

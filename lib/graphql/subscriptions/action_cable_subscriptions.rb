@@ -39,7 +39,7 @@ module GraphQL
     #       })
     #
     #       payload = {
-    #         result: result.subscription? ? {data: nil} : result.to_h,
+    #         result: result.subscription? ? { data: nil } : result.to_h,
     #         more: result.subscription?,
     #       }
     #
@@ -54,9 +54,28 @@ module GraphQL
     #
     #     def unsubscribed
     #       @subscription_ids.each { |sid|
-    #         CardsSchema.subscriptions.delete_subscription(sid)
+    #         MySchema.subscriptions.delete_subscription(sid)
     #       }
     #     end
+    #
+    #     private
+    #
+    #       def ensure_hash(ambiguous_param)
+    #         case ambiguous_param
+    #         when String
+    #           if ambiguous_param.present?
+    #             ensure_hash(JSON.parse(ambiguous_param))
+    #           else
+    #             {}
+    #           end
+    #         when Hash, ActionController::Parameters
+    #           ambiguous_param
+    #         when nil
+    #           {}
+    #         else
+    #           raise ArgumentError, "Unexpected parameter: #{ambiguous_param}"
+    #         end
+    #       end
     #   end
     #
     class ActionCableSubscriptions < GraphQL::Subscriptions
@@ -92,7 +111,7 @@ module GraphQL
       # It will receive notifications when events come in
       # and re-evaluate the query locally.
       def write_subscription(query, events)
-        channel = query.context[:channel]
+        channel = query.context.fetch(:channel)
         subscription_id = query.context[:subscription_id] ||= build_id
         stream = query.context[:action_cable_stream] ||= SUBSCRIPTION_PREFIX + subscription_id
         channel.stream_from(stream)

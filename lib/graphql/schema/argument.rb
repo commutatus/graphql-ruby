@@ -4,11 +4,13 @@ module GraphQL
     class Argument
       include GraphQL::Schema::Member::CachedGraphQLDefinition
       include GraphQL::Schema::Member::AcceptsDefinition
+      include GraphQL::Schema::Member::HasPath
 
       NO_DEFAULT = :__no_default__
 
       # @return [String] the GraphQL name for this argument, camelized unless `camelize: false` is provided
       attr_reader :name
+      alias :graphql_name :name
 
       # @return [GraphQL::Schema::Field, Class] The field or input object this argument belongs to
       attr_reader :owner
@@ -26,11 +28,12 @@ module GraphQL
       # @param description [String]
       # @param default_value [Object]
       # @param as [Symbol] Override the keyword name when passed to a method
-      # @param prepare [Symbol] A method to call to tranform this argument's valuebefore sending it to field resolution
+      # @param prepare [Symbol] A method to call to transform this argument's valuebefore sending it to field resolution
       # @param camelize [Boolean] if true, the name will be camelized when building the schema
-      def initialize(arg_name, type_expr, desc = nil, required:, description: nil, default_value: NO_DEFAULT, as: nil, camelize: true, prepare: nil, owner:, &definition_block)
+      def initialize(arg_name = nil, type_expr = nil, desc = nil, required:, type: nil, name: nil, description: nil, default_value: NO_DEFAULT, as: nil, camelize: true, prepare: nil, owner:, &definition_block)
+        arg_name ||= name
         @name = camelize ? Member::BuildType.camelize(arg_name.to_s) : arg_name.to_s
-        @type_expr = type_expr
+        @type_expr = type_expr || type
         @description = desc || description
         @null = !required
         @default_value = default_value
@@ -40,16 +43,43 @@ module GraphQL
         @prepare = prepare
 
         if definition_block
-          instance_eval(&definition_block)
+          if definition_block.arity == 1
+            instance_exec(self, &definition_block)
+          else
+            instance_eval(&definition_block)
+          end
         end
       end
 
+      # @return [Object] the value used when the client doesn't provide a value for this argument
+      attr_reader :default_value
+
+      # @return [Boolean] True if this argument has a default value
+      def default_value?
+        @default_value != NO_DEFAULT
+      end
+
+      attr_writer :description
+
+      # @return [String] Documentation for this argument
       def description(text = nil)
         if text
           @description = text
         else
           @description
         end
+      end
+
+      def visible?(context)
+        true
+      end
+
+      def accessible?(context)
+        true
+      end
+
+      def authorized?(obj, ctx)
+        true
       end
 
       def to_graphql
@@ -75,12 +105,11 @@ module GraphQL
       # Used by the runtime.
       # @api private
       def prepare_value(obj, value)
-        case @prepare
-        when nil
+        if @prepare.nil?
           value
-        when Symbol, String
+        elsif @prepare.is_a?(String) || @prepare.is_a?(Symbol)
           obj.public_send(@prepare, value)
-        when Proc
+        elsif @prepare.respond_to?(:call)
           @prepare.call(value, obj.context)
         else
           raise "Invalid prepare for #{@owner.name}.name: #{@prepare.inspect}"

@@ -19,21 +19,30 @@ require "graphql/schema/validation"
 require "graphql/schema/warden"
 require "graphql/schema/build_from_definition"
 
-
 require "graphql/schema/member"
+require "graphql/schema/wrapper"
 require "graphql/schema/list"
 require "graphql/schema/non_null"
 require "graphql/schema/argument"
 require "graphql/schema/enum_value"
 require "graphql/schema/enum"
+require "graphql/schema/field_extension"
 require "graphql/schema/field"
 require "graphql/schema/input_object"
 require "graphql/schema/interface"
+require "graphql/schema/scalar"
+require "graphql/schema/object"
+require "graphql/schema/union"
+require "graphql/schema/directive"
+require "graphql/schema/directive/include"
+require "graphql/schema/directive/skip"
+require "graphql/schema/directive/feature"
+require "graphql/schema/directive/transform"
+
+require "graphql/schema/resolver"
 require "graphql/schema/mutation"
 require "graphql/schema/relay_classic_mutation"
-require "graphql/schema/object"
-require "graphql/schema/scalar"
-require "graphql/schema/union"
+require "graphql/schema/subscription"
 
 module GraphQL
   # A GraphQL schema which may be queried with {GraphQL::Query}.
@@ -68,6 +77,7 @@ module GraphQL
   #   end
   #
   class Schema
+    extend Forwardable
     extend GraphQL::Schema::Member::AcceptsDefinition
     include GraphQL::Define::InstanceDefinable
     accepts_definitions \
@@ -75,22 +85,29 @@ module GraphQL
       :query_execution_strategy, :mutation_execution_strategy, :subscription_execution_strategy,
       :max_depth, :max_complexity, :default_max_page_size,
       :orphan_types, :resolve_type, :type_error, :parse_error,
+      :error_bubbling,
       :raise_definition_error,
       :object_from_id, :id_from_object,
       :default_mask,
       :cursor_encoder,
-      directives: ->(schema, directives) { schema.directives = directives.reduce({}) { |m, d| m[d.name] = d; m  }},
+      directives: ->(schema, directives) { schema.directives = directives.reduce({}) { |m, d| m[d.name] = d; m } },
+      directive: ->(schema, directive) { schema.directives[directive.graphql_name] = directive },
       instrument: ->(schema, type, instrumenter, after_built_ins: false) {
         if type == :field && after_built_ins
           type = :field_after_built_ins
         end
         schema.instrumenters[type] << instrumenter
       },
-      query_analyzer: ->(schema, analyzer) { schema.query_analyzers << analyzer },
+      query_analyzer: ->(schema, analyzer) {
+        if analyzer == GraphQL::Authorization::Analyzer
+          warn("The Authorization query analyzer is deprecated. Authorizing at query runtime is generally a better idea.")
+        end
+        schema.query_analyzers << analyzer
+      },
       multiplex_analyzer: ->(schema, analyzer) { schema.multiplex_analyzers << analyzer },
       middleware: ->(schema, middleware) { schema.middleware << middleware },
       lazy_resolve: ->(schema, lazy_class, lazy_value_method) { schema.lazy_methods.set(lazy_class, lazy_value_method) },
-      rescue_from: ->(schema, err_class, &block) { schema.rescue_from(err_class, &block)},
+      rescue_from: ->(schema, err_class, &block) { schema.rescue_from(err_class, &block) },
       tracer: ->(schema, tracer) { schema.tracers.push(tracer) }
 
     attr_accessor \
@@ -102,7 +119,11 @@ module GraphQL
       :cursor_encoder,
       :ast_node,
       :raise_definition_error,
-      :introspection_namespace
+      :introspection_namespace,
+      :analysis_engine
+
+    # [Boolean] True if this object bubbles validation errors up from a field into its parent InputObject, if there is one.
+    attr_accessor :error_bubbling
 
     # Single, long-lived instance of the provided subscriptions class, if there is one.
     # @return [GraphQL::Subscriptions]
@@ -120,7 +141,7 @@ module GraphQL
     attr_accessor :context_class
 
     class << self
-      attr_accessor :default_execution_strategy
+      attr_writer :default_execution_strategy
     end
 
     def default_filter
@@ -131,10 +152,6 @@ module GraphQL
     # @see {Query#tracers} for query-specific tracers
     attr_reader :tracers
 
-    self.default_execution_strategy = GraphQL::Execution::Execute
-
-    BUILT_IN_TYPES = Hash[[INT_TYPE, STRING_TYPE, FLOAT_TYPE, BOOLEAN_TYPE, ID_TYPE].map{ |type| [type.name, type] }]
-    DIRECTIVES = [GraphQL::Directive::IncludeDirective, GraphQL::Directive::SkipDirective, GraphQL::Directive::DeprecatedDirective]
     DYNAMIC_FIELDS = ["__type", "__typename", "__schema"]
 
     attr_reader :static_validator, :object_from_id_proc, :id_from_object_proc, :resolve_type_proc
@@ -143,7 +160,7 @@ module GraphQL
       @tracers = []
       @definition_error = nil
       @orphan_types = []
-      @directives = DIRECTIVES.reduce({}) { |m, d| m[d.name] = d; m }
+      @directives = self.class.default_directives
       @static_validator = GraphQL::StaticValidation::Validator.new(schema: self)
       @middleware = MiddlewareChain.new(final_step: GraphQL::Execution::Execute::FieldResolveStep)
       @query_analyzers = []
@@ -155,9 +172,10 @@ module GraphQL
       @parse_error_proc = DefaultParseError
       @instrumenters = Hash.new { |h, k| h[k] = [] }
       @lazy_methods = GraphQL::Execution::Lazy::LazyMethodMap.new
-      @lazy_methods.set(GraphQL::Relay::ConnectionResolve::LazyNodesWrapper, :never_called)
+      @lazy_methods.set(GraphQL::Execution::Lazy, :value)
       @cursor_encoder = Base64Encoder
       # Default to the built-in execution strategy:
+      @analysis_engine = GraphQL::Analysis
       @query_execution_strategy = self.class.default_execution_strategy
       @mutation_execution_strategy = self.class.default_execution_strategy
       @subscription_execution_strategy = self.class.default_execution_strategy
@@ -166,6 +184,20 @@ module GraphQL
       @context_class = GraphQL::Query::Context
       @introspection_namespace = nil
       @introspection_system = nil
+      @interpreter = false
+      @error_bubbling = false
+    end
+
+    # @return [Boolean] True if using the new {GraphQL::Execution::Interpreter}
+    def interpreter?
+      @interpreter
+    end
+
+    # @api private
+    attr_writer :interpreter
+
+    def inspect
+      "#<#{self.class.name} ...>"
     end
 
     def initialize_copy(other)
@@ -204,12 +236,16 @@ module GraphQL
       rescue_middleware.remove_handler(*args, &block)
     end
 
+    def using_ast_analysis?
+      @analysis_engine == GraphQL::Analysis::AST
+    end
+
     # For forwards-compatibility with Schema classes
     alias :graphql_definition :itself
 
     # Validate a query string according to this schema.
     # @param string_or_document [String, GraphQL::Language::Nodes::Document]
-    # @return [Array<GraphQL::StaticValidation::Message>]
+    # @return [Array<GraphQL::StaticValidation::Error >]
     def validate(string_or_document, rules: nil)
       doc = if string_or_document.is_a?(String)
         GraphQL.parse(string_or_document)
@@ -387,7 +423,7 @@ module GraphQL
     # Fields for this type, after instrumentation is applied
     # @return [Hash<String, GraphQL::Field>]
     def get_fields(type)
-      @instrumented_field_map[type.name]
+      @instrumented_field_map[type.graphql_name]
     end
 
     def type_from_ast(ast_node)
@@ -459,6 +495,10 @@ module GraphQL
 
       if object.is_a?(GraphQL::Schema::Object)
         object = object.object
+      end
+
+      if type.respond_to?(:graphql_definition)
+        type = type.graphql_definition
       end
 
       # Prefer a type-local function; fall back to the schema-level function
@@ -533,6 +573,11 @@ module GraphQL
     def type_error=(new_proc)
       @type_error_proc = new_proc
     end
+
+    # Can't delegate to `class`
+    alias :_schema_class :class
+    def_delegators :_schema_class, :visible?, :accessible?, :authorized?, :unauthorized_object, :unauthorized_field, :inaccessible_fields
+    def_delegators :_schema_class, :directive
 
     # A function to call when {#execute} receives an invalid query string
     #
@@ -645,15 +690,18 @@ module GraphQL
         # Execution
         :execute, :multiplex,
         :static_validator, :introspection_system,
-        :query_analyzers, :middleware, :tracers, :instrumenters,
-        :query_execution_strategy, :mutation_execution_strategy, :subscription_execution_strategy,
-        :validate, :multiplex_analyzers, :lazy?, :lazy_method_name,
+        :query_analyzers, :tracers, :instrumenters,
+        :execution_strategy_for_operation,
+        :validate, :multiplex_analyzers, :lazy?, :lazy_method_name, :after_lazy, :sync_lazy,
         # Configuration
+        :analysis_engine, :analysis_engine=, :using_ast_analysis?, :interpreter?,
         :max_complexity=, :max_depth=,
+        :error_bubbling=,
         :metadata,
+        :default_mask,
         :default_filter, :redefine,
         :id_from_object_proc, :object_from_id_proc,
-        :id_from_object=, :object_from_id=, :type_error,
+        :id_from_object=, :object_from_id=,
         :remove_handler,
         # Members
         :types, :get_fields, :find,
@@ -661,7 +709,7 @@ module GraphQL
         :subscriptions,
         :union_memberships,
         :get_field, :root_types, :references_to, :type_from_ast,
-        :possible_types, :get_field
+        :possible_types
 
       def graphql_definition
         @graphql_definition ||= to_graphql
@@ -682,10 +730,14 @@ module GraphQL
         schema_defn.mutation = mutation
         schema_defn.subscription = subscription
         schema_defn.max_complexity = max_complexity
+        schema_defn.error_bubbling = error_bubbling
         schema_defn.max_depth = max_depth
         schema_defn.default_max_page_size = default_max_page_size
         schema_defn.orphan_types = orphan_types
-        schema_defn.directives = directives
+
+        prepped_dirs = {}
+        directives.each { |k, v| prepped_dirs[k] = v.graphql_definition}
+        schema_defn.directives = prepped_dirs
         schema_defn.introspection_namespace = introspection
         schema_defn.resolve_type = method(:resolve_type)
         schema_defn.object_from_id = method(:object_from_id)
@@ -695,14 +747,17 @@ module GraphQL
         schema_defn.cursor_encoder = cursor_encoder
         schema_defn.tracers.concat(defined_tracers)
         schema_defn.query_analyzers.concat(defined_query_analyzers)
+
         schema_defn.middleware.concat(defined_middleware)
         schema_defn.multiplex_analyzers.concat(defined_multiplex_analyzers)
+        schema_defn.query_execution_strategy = query_execution_strategy
+        schema_defn.mutation_execution_strategy = mutation_execution_strategy
+        schema_defn.subscription_execution_strategy = subscription_execution_strategy
         defined_instrumenters.each do |step, insts|
           insts.each do |inst|
             schema_defn.instrumenters[step] << inst
           end
         end
-        schema_defn.instrumenters[:query] << GraphQL::Schema::Member::Instrumentation
         lazy_classes.each do |lazy_class, value_method|
           schema_defn.lazy_methods.set(lazy_class, value_method)
         end
@@ -724,6 +779,10 @@ module GraphQL
               end
             end
           end
+        end
+        # Do this after `plugins` since Interpreter is a plugin
+        if schema_defn.query_execution_strategy != GraphQL::Execution::Interpreter
+          schema_defn.instrumenters[:query] << GraphQL::Schema::Member::Instrumentation
         end
         schema_defn.send(:rebuild_artifacts)
 
@@ -777,11 +836,43 @@ module GraphQL
         end
       end
 
+      def query_execution_strategy(new_query_execution_strategy = nil)
+        if new_query_execution_strategy
+          @query_execution_strategy = new_query_execution_strategy
+        else
+          @query_execution_strategy || self.default_execution_strategy
+        end
+      end
+
+      def mutation_execution_strategy(new_mutation_execution_strategy = nil)
+        if new_mutation_execution_strategy
+          @mutation_execution_strategy = new_mutation_execution_strategy
+        else
+          @mutation_execution_strategy || self.default_execution_strategy
+        end
+      end
+
+      def subscription_execution_strategy(new_subscription_execution_strategy = nil)
+        if new_subscription_execution_strategy
+          @subscription_execution_strategy = new_subscription_execution_strategy
+        else
+          @subscription_execution_strategy || self.default_execution_strategy
+        end
+      end
+
       def max_complexity(max_complexity = nil)
         if max_complexity
           @max_complexity = max_complexity
         else
           @max_complexity
+        end
+      end
+
+      def error_bubbling(new_error_bubbling = nil)
+        if !new_error_bubbling.nil?
+          @error_bubbling = new_error_bubbling
+        else
+          @error_bubbling
         end
       end
 
@@ -805,7 +896,7 @@ module GraphQL
         if superclass <= GraphQL::Schema
           superclass.default_execution_strategy
         else
-          @default_execution_strategy
+          @default_execution_strategy ||= GraphQL::Execution::Execute
         end
       end
 
@@ -817,21 +908,82 @@ module GraphQL
         end
       end
 
-      def rescue_from(err_class, &handler_block)
+      def rescue_from(*err_classes, &handler_block)
         @rescues ||= {}
-        @rescues[err_class] = handler_block
+        err_classes.each do |err_class|
+          @rescues[err_class] = handler_block
+        end
       end
 
       def resolve_type(type, obj, ctx)
-        raise NotImplementedError, "#{self.name}.resolve_type(type, obj, ctx) must be implemented to use Union types or Interface types (tried to resolve: #{type.name})"
+        if type.kind.object?
+          type
+        else
+          raise NotImplementedError, "#{self.name}.resolve_type(type, obj, ctx) must be implemented to use Union types or Interface types (tried to resolve: #{type.name})"
+        end
       end
 
       def object_from_id(node_id, ctx)
-        raise NotImplementedError, "#{self.name}.object_from_id(node_id, ctx) must be implemented to use the `node` field (tried to load from id `#{node_id}`)"
+        raise NotImplementedError, "#{self.name}.object_from_id(node_id, ctx) must be implemented to load by ID (tried to load from id `#{node_id}`)"
       end
 
       def id_from_object(object, type, ctx)
         raise NotImplementedError, "#{self.name}.id_from_object(object, type, ctx) must be implemented to create global ids (tried to create an id for `#{object.inspect}`)"
+      end
+
+      def visible?(member, context)
+        call_on_type_class(member, :visible?, context, default: true)
+      end
+
+      def accessible?(member, context)
+        call_on_type_class(member, :accessible?, context, default: true)
+      end
+
+      # This hook is called when a client tries to access one or more
+      # fields that fail the `accessible?` check.
+      #
+      # By default, an error is added to the response. Override this hook to
+      # track metrics or return a different error to the client.
+      #
+      # @param error [InaccessibleFieldsError] The analysis error for this check
+      # @return [AnalysisError, nil] Return an error to skip the query
+      def inaccessible_fields(error)
+        error
+      end
+
+      # This hook is called when an object fails an `authorized?` check.
+      # You might report to your bug tracker here, so you can correct
+      # the field resolvers not to return unauthorized objects.
+      #
+      # By default, this hook just replaces the unauthorized object with `nil`.
+      #
+      # Whatever value is returned from this method will be used instead of the
+      # unauthorized object (accessible as `unauthorized_error.object`). If an
+      # error is raised, then `nil` will be used.
+      #
+      # If you want to add an error to the `"errors"` key, raise a {GraphQL::ExecutionError}
+      # in this hook.
+      #
+      # @param unauthorized_error [GraphQL::UnauthorizedError]
+      # @return [Object] The returned object will be put in the GraphQL response
+      def unauthorized_object(unauthorized_error)
+        nil
+      end
+
+      # This hook is called when a field fails an `authorized?` check.
+      #
+      # By default, this hook implements the same behavior as unauthorized_object.
+      #
+      # Whatever value is returned from this method will be used instead of the
+      # unauthorized field . If an error is raised, then `nil` will be used.
+      #
+      # If you want to add an error to the `"errors"` key, raise a {GraphQL::ExecutionError}
+      # in this hook.
+      #
+      # @param unauthorized_error [GraphQL::UnauthorizedFieldError]
+      # @return [Field] The returned field will be put in the GraphQL response
+      def unauthorized_field(unauthorized_error)
+        unauthorized_object(unauthorized_error)
       end
 
       def type_error(type_err, ctx)
@@ -856,7 +1008,19 @@ module GraphQL
           @directives = new_directives.reduce({}) { |m, d| m[d.name] = d; m }
         end
 
-        @directives ||= directives(DIRECTIVES)
+        @directives ||= default_directives
+      end
+
+      def directive(new_directive)
+        directives[new_directive.graphql_name] = new_directive
+      end
+
+      def default_directives
+        {
+          "include" => GraphQL::Directive::IncludeDirective,
+          "skip" => GraphQL::Directive::SkipDirective,
+          "deprecated" => GraphQL::Directive::DeprecatedDirective,
+        }
       end
 
       def tracer(new_tracer)
@@ -864,6 +1028,9 @@ module GraphQL
       end
 
       def query_analyzer(new_analyzer)
+        if new_analyzer == GraphQL::Authorization::Analyzer
+          warn("The Authorization query analyzer is deprecated. Authorizing at query runtime is generally a better idea.")
+        end
         defined_query_analyzers << new_analyzer
       end
 
@@ -904,6 +1071,29 @@ module GraphQL
       def defined_multiplex_analyzers
         @defined_multiplex_analyzers ||= []
       end
+
+      # Given this schema member, find the class-based definition object
+      # whose `method_name` should be treated as an application hook
+      # @see {.visible?}
+      # @see {.accessible?}
+      # @see {.authorized?}
+      def call_on_type_class(member, method_name, *args, default:)
+        member = if member.respond_to?(:metadata) && member.metadata
+          member.metadata[:type_class] || member
+        else
+          member
+        end
+
+        if member.respond_to?(:relay_node_type) && (t = member.relay_node_type)
+          member = t
+        end
+
+        if member.respond_to?(method_name)
+          member.public_send(method_name, *args)
+        else
+          default
+        end
+      end
     end
 
 
@@ -922,6 +1112,53 @@ module GraphQL
       end
     end
 
+    # Call the given block at the right time, either:
+    # - Right away, if `value` is not registered with `lazy_resolve`
+    # - After resolving `value`, if it's registered with `lazy_resolve` (eg, `Promise`)
+    # @api private
+    def after_lazy(value)
+      if lazy?(value)
+        GraphQL::Execution::Lazy.new do
+          result = sync_lazy(value)
+          # The returned result might also be lazy, so check it, too
+          after_lazy(result) do |final_result|
+            yield(final_result) if block_given?
+          end
+        end
+      else
+        yield(value) if block_given?
+      end
+    end
+
+    # Override this method to handle lazy objects in a custom way.
+    # @param value [Object] an instance of a class registered with {.lazy_resolve}
+    # @param ctx [GraphQL::Query::Context] the context for this query
+    # @return [Object] A GraphQL-ready (non-lazy) object
+    def self.sync_lazy(value)
+      if block_given?
+        # This was already hit by the instance, just give it back
+        yield(value)
+      else
+        # This was called directly on the class, hit the instance
+        # which has the lazy method map
+        self.graphql_definition.sync_lazy(value)
+      end
+    end
+
+    # @see Schema.sync_lazy for a hook to override
+    # @api private
+    def sync_lazy(value)
+      self.class.sync_lazy(value) { |v|
+        lazy_method = lazy_method_name(v)
+        if lazy_method
+          synced_value = value.public_send(lazy_method)
+          sync_lazy(synced_value)
+        else
+          v
+        end
+      }
+    end
+
     protected
 
     def rescues?
@@ -935,15 +1172,6 @@ module GraphQL
     end
 
     private
-
-    # Wrap Relay-related objects in wrappers
-    # @api private
-    BUILT_IN_INSTRUMENTERS = [
-      GraphQL::Relay::ConnectionInstrumentation,
-      GraphQL::Relay::EdgesInstrumentation,
-      GraphQL::Relay::Mutation::Instrumentation,
-      GraphQL::Schema::Member::Instrumentation,
-    ]
 
     def rebuild_artifacts
       if @rebuilding_artifacts

@@ -4,6 +4,12 @@ require "spec_helper"
 describe GraphQL::Schema::Interface do
   let(:interface) { Jazz::GloballyIdentifiableType }
 
+  describe ".path" do
+    it "is the name" do
+      assert_equal "GloballyIdentifiable", interface.path
+    end
+  end
+
   describe "type info" do
     it "tells its type info" do
       assert_equal "GloballyIdentifiable", interface.graphql_name
@@ -77,11 +83,11 @@ describe GraphQL::Schema::Interface do
       interface = Module.new do
         include GraphQL::Schema::Interface
         graphql_name "MyInterface"
-        orphan_types Dummy::CheeseType, Dummy::HoneyType
+        orphan_types Dummy::Cheese, Dummy::Honey
       end
 
       interface_type = interface.to_graphql
-      assert_equal [Dummy::CheeseType, Dummy::HoneyType], interface_type.orphan_types
+      assert_equal [Dummy::Cheese, Dummy::Honey], interface_type.orphan_types
     end
   end
 
@@ -155,6 +161,55 @@ describe GraphQL::Schema::Interface do
         "name" => "Bela Fleck and the Flecktones"
       }
       assert_equal(expected_data, res["data"]["find"])
+    end
+  end
+
+  describe ':DefinitionMethods' do
+    module InterfaceA
+      include GraphQL::Schema::Interface
+
+      definition_methods do
+        def some_method
+          42
+        end
+      end
+    end
+
+    module InterfaceB
+      include GraphQL::Schema::Interface
+    end
+
+    module InterfaceC
+      include GraphQL::Schema::Interface
+    end
+
+    module InterfaceD
+      include InterfaceA
+
+      definition_methods do
+        def some_method
+          'not 42'
+        end
+      end
+    end
+
+    module InterfaceE
+      include InterfaceD
+    end
+
+    it "doesn't overwrite them when including multiple interfaces" do
+      def_methods = InterfaceC::DefinitionMethods
+
+      InterfaceC.module_eval do
+        include InterfaceA
+        include InterfaceB
+      end
+
+      assert_equal(InterfaceC::DefinitionMethods, def_methods)
+    end
+
+    it "follows the normal Ruby ancestor chain when including other interfaces" do
+      assert_equal('not 42', InterfaceE.some_method)
     end
   end
 end

@@ -35,7 +35,7 @@ module GraphQL
     end
 
     # @return [String] the name of this type, must be unique within a Schema
-    attr_accessor :name
+    attr_reader :name
     # Future-compatible alias
     # @see {GraphQL::SchemaMember}
     alias :graphql_name :name
@@ -114,6 +114,7 @@ module GraphQL
     end
 
     alias :inspect :to_s
+    alias :to_type_signature :to_s
 
     def valid_isolated_input?(value)
       valid_input?(value, GraphQL::Query::NullContext)
@@ -186,7 +187,7 @@ module GraphQL
         resolve_related_type(type_arg.call)
       when String
         # Get a constant by this name
-        Object.const_get(type_arg)
+        resolve_related_type(Object.const_get(type_arg))
       else
         if type_arg.respond_to?(:graphql_definition)
           type_arg.graphql_definition

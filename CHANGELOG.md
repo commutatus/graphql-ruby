@@ -8,6 +8,347 @@
 
 ### Bug fixes
 
+## 1.9.0-pre4 (11 Feb 2019)
+
+### Breaking changes
+
+- Rename `FieldExtension#before_resolve` -> `FieldExtension#resolve` #2098
+
+### New Features
+
+- Better compatibility with legacy `.node` and `.nodes` fields #2089
+- Allow field extensions to replace field return values #2092
+
+### Bug fixes
+
+- Fix AST analyzer when no operation is selected #2078
+- Fix list-type arguments passed with a single value #2085
+- Fix unwrapping inputobject types when turning arguments to hashes #2094
+- Properly resolve _each_ mutation root selection before resolving the next one #2097
+
+## 1.9.0-pre3 (30 Jan 2019)
+
+### Breaking Changes
+
+- Error `"problems"` are now in `"extensions" : { "problems" }` #2077
+- Change schema default to `error_bubbling false` #2069
+
+### New Features
+
+- Add class-based subscriptions with `GraphQL::Schema::Subscription` #1930
+
+### Bug fixes
+
+- Fix lookahead on typed fragments #2068
+
+## 1.9.0-pre2 (17 Jan 2019)
+
+### Breaking changes
+
+- AST nodes are immutable. To modify a parsed GraphQL query, see `GraphQL::Language::Visitor` for its mutation API, which builds a new AST with the specified mutations applied. #1338, #1740
+- Cursors use urlsafe Base64. This won't break your clients (it's backwards-compatible), but it might break your tests, so it's listed here. #1698
+- Add `field(..., resolver_method:)` for when GraphQL-Ruby should call a method _other than_ the one whose name matches the field name (#1961). This means that if you're using `method:` to call a different method _on the Schema::Object subclass_, you should update that configuration to `resolver_method:`. (`method:` is still used to call a different method on the _underlying application object_.)
+- Calling `super` in a field method doesn't work anymore (#1961)
+
+### New features
+
+- Add `GraphQL::Execution::Interpreter` (#1394) and `GraphQL::Analysis::AST` (#1824) which together cut GraphQL overhead by half (time and memory)
+- Add `Schema.unauthorized_field(err)` for when `Field#authorized?` checks fail (#1994)
+- Add class-based custom directives for the interpreter (#2055)
+- Add `Schema::FieldExtension` for customizing field execution with class-based fields #1795
+- Add `Query#lookahead` for root-level selection info #1931
+- Validation errors have `"extensions": { ... }` which includes metadata about that error #1970
+
+### Bug fixes
+
+- Support `false` as an Enum value #2050
+- Support `hash_key:` fields when the key isn't a valid Ruby method name #2016
+- Fix lookahead with Fragments #1933
+
+## 1.8.14 (9 Feb 2018)
+
+### Bug Fixes
+
+- Fix single-item list inputs that aren't passed as lists #2095
+
+## 1.8.13 (4 Jan 2018)
+
+### Bug fixes
+
+- Fix regression in block string parsing #2032
+
+## 1.8.12 (3 Jan 2019)
+
+### Breaking changes
+
+- When an input object's argument has a validation error, that error is reported on the _argument_ instead of its parent input object. #2013
+
+### New features
+
+- Add `error_bubbling false` Schema configuration for nicer validation of compound inputs #2013
+- Print descriptions as block strings in SDL #2011
+- Improve string-to-constant resolution #1810
+- Add `Query::Context#to_hash` for splatting #1955
+- Add `#dig` to `Schema::InputObject` and `Query::Arguments` #1968
+- Add `.*_execution_strategy` methods to class-based schemas #1914
+- Accept multiple errors when adding `.rescue_from` handlers #1991
+
+### Bug fixes
+
+- Fix scalar tracing in NewRelic and Skylight #1954
+- Fix lexer for multiple block strings #1937
+- Add `unscope(:order)` when counting relations #1911
+- Improve build-from-definition error message #1998
+- Fix regression in legacy compat #2000
+
+## 1.8.11 (16 Oct 2018)
+
+### New features
+
+- `extras: [:lookahead]` injects a `GraphQL::Execution::Lookahead`
+
+### Bug fixes
+
+- Fix type printing in Printer #1902
+- Rescue `GraphQL::ExecutionError` in `.before_query` hooks #1898
+- Properly load default values that are lists of input objects from the IDL #1874
+
+## 1.8.10 (21 Sep 2018)
+
+### Bug fixes
+
+- When using `loads:` with a nullable mutation input field, allow `null` values to be provided. #1851
+- When an invalid Base64 encoded cursor is provided, raise a `GraphQL::ExecutionError` instead of `ArgumentError`. #1855
+- Fix an issue with `extras: [:path]` would use the field's `path` instead of the `context`. #1859
+
+### New features
+
+- Add scalar type generator `rails g graphql:scalar` #1847
+- Add `#dig` method to `Query::Context` #1861
+
+## 1.8.9 (13 Sep 2018)
+
+### Breaking changes
+
+- When `field ... ` is called with a block and the block has one argument, the field is yielded, but `self` inside the block is _not_ changed to the field. #1843
+
+### New features
+
+- `extras: [...]` can inject values from the field instance #1808
+- Add `ISO8601DateTime.time_precision` for customization #1845
+- Fix input objects with default values of enum #1827
+- `Schema.sync_lazy(value)` hook for intercepting lazy-resolved objects #1784
+
+### Bug fixes
+
+- When a field block is provided with an arity of `1`, yield the field #1843
+
+## 1.8.8 (27 Aug 2018)
+
+### Bug fixes
+
+- When using `RelayClassicMutation`, `client_mutation_id` will no longer be passed to `authorized?` method #1771
+- Fix issue in schema upgrader script which would cause `.to_non_null_type` calls in type definition to be ignored #1783
+- Ensure enum values respond to `graphql_name` #1792
+- Fix infinite resolution bug that could occur when an exception not inheriting from `StandardError` is thrown #1804
+
+### New features
+
+- Add `#path` method to schema members #1766
+- Add `as:` argument to allow overriding the name of the argument when using `loads:` #1773
+- Add support for list of IDs when using `loads:` in an argument definition #1797
+
+## 1.8.7 (9 Aug 2018)
+
+### Breaking changes
+
+- Some mutation authorization hooks added in 1.8.5 were changed, see #1736 and #1737. Roughly:
+
+  - `before_prepare` was changed to `#ready?`
+  - `validate_*` hooks were replaced with a single `#authorized?` method
+
+### Bug fixes
+
+- Argument default values include nested default values #1728
+- Clean up duplciate method defs #1739
+
+### New features
+
+- Built-in support for Mongoid 5, 6, 7 #1754
+- Mutation `#ready?` and `#authorized?` may halt flow and/or return data #1736, #1737
+- Add `.scope_items(items, ctx)` hook for filtering lists
+- Add `#default_graphql_name` for overriding default logic #1729
+- Add `#add_argument` for building schemas #1732
+- Cursors are decoded using `urlsafe_decode64` to future-proof for urlsafe cursors #1748
+
+## 1.8.6 (31 July 2018)
+
+### Breaking changes
+
+- Only allow Objects to implement actual Interfaces #1715. Use `include` instead for plain Ruby modules.
+- Revert extending interface methods onto Objects #1716. If you were taking advantage of this feature, you can create a plain Ruby module with the functionality and include it in both the interface and object.
+
+### Deprecations
+
+### New features
+
+- Support string descriptions (from June 2018 GraphQL spec) #1725
+- Add some accessors to Schema members #1722
+- Yield argument for definition block with arity of one #1714
+- Yield field for definition blocks with arity of one #1712
+- Support grouping by "endpoint" with skylight instrumentation #1663
+- Validation: Don't traverse irep if no handlers are registered #1696
+- Add `nodes_field` option to `edge_type` to hide nodes field #1693
+- Add `GraphQL::Types::ISO8601DateTime` to documentation #1694
+- Conditional Analyzers #1690
+- Improve error messages in `ActionCableSubscriptions` #1675
+- Add Prometheus tracing #1672
+- Add `map` to `InputObject` #1669
+
+### Bug fixes
+
+- Improve the mutation generator #1718
+- Fix method inheritance for interfaces #1709
+- Fix Interface inheritance chain #1686
+- Fix require in `tracing.rb` #1685
+- Remove delegate for `FieldResolutionContext#schema` #1682
+- Remove duplicated `object_class` method #1667
+
+## 1.8.5 (10 July 2018)
+
+### Breaking changes
+
+- GraphQL validation errors now include `"filename"` if the parsed document had a `filename` #1618
+
+### Deprecations
+
+- `TypeKind#resolves?` is deprecated in favor of `TypeKind#abstract?` #1619
+
+### New features
+
+- Add Mutation loading/authorization system #1609
+- Interface `definition_methods` are inherited by object type classes #1635
+- include `"filename"` in GraphQL errors if the parsed document has a filename #1618
+- Add `Schema::InputObject#empty?` #1651
+- require `ISO8601DateTime` by default #1660
+- Support `extend` in the parser #1620
+- Improve generator to have nicer error handling in development
+
+### Bug fixes
+
+- Fix `@skip`/`@include` with default value of `false` #1617
+- Fix lists of abstract types with promises #1613
+- Don't check the type of `nil` when it's in a list #1610
+- Fix NoMethodError when `variables: nil` is passed to `execute(...)` #1661
+- Objects returned from `Schema.unauthorized_objects` are properly wrapped by their type proxies #1662
+
+## 1.8.4 (21 June 2018)
+
+### New features
+
+- Add class-based definitions for Relay types #1568
+- Add a built-in auth system #1494
+
+### Bug fixes
+
+- Properly rescue coercion errors in variable values #1602
+
+## 1.8.3 (14 June 2018)
+
+### New features
+
+- Add an ISO 8601 DateTime scalar: `Types::ISO8601DateTime`. #1566
+- Use classes under the hood for built-in scalars. These are now accessible via `Types::` namespace. #1565
+- Add `possible_types` helpers to abstract types #1580
+
+### Bug fixes
+
+- Fix `Language::Visitor` when visiting `InputObjectTypeDefinition` nodes to include child `Directive` nodes. #1584
+- Fix an issue preventing proper subclassing of `TimeoutMiddleware`. #1579
+- Fix `graphql:interface` generator such that it generates working code. #1577
+- Update the description of auto-generated `before` and `after` arguments to better describe their input type. #1572
+- Add `Language::Nodes::DirectiveLocation` AST node to represent directive locations in directive definitions. #1564
+
+## 1.8.2 (6 June 2018)
+
+### Breaking changes
+
+- `Schema::InputObject#to_h` recursively transforms hashes to underscorized, symbolized keys. #1555
+
+### New features
+
+- Generators create class-based types #1562
+- `Schema::InputObject#to_h` returns a underscorized, symbolized hash #1555
+
+### Bug fixes
+
+- Support `default_mask` in class-based schemas #1563
+- Fix null propagation for list types #1558
+- Validate unique arguments in queries #1557
+- Fix `RelayClassicMutation`s with no arguments #1543
+
+## 1.8.1 (1 June 2018)
+
+### Breaking changes
+
+- When filtering items out of a schema, Unions will now be hidden if their possible types are all hidden or if all fields returning it are hidden. #1515
+
+### New features
+
+- `GraphQL::ExecutionError.new` accepts an `extensions:` option which will be merged into the `"extensions"` key in that error's JSON #1552
+
+### Bug fixes
+
+- When filtering items out of a schema, Unions will now be hidden if their possible types are all hidden or if all fields returning it are hidden. #1515
+- Require that fields returning interfaces have selections made on them #1551
+- Correctly mark introspection types and fields as `introspection?` #1535
+- Remove unused introspection objects #1534
+- use `object`/`context` in the upgrader instead of `@object`/`@context` #1529
+- (Development) Don't require mongodb for non-mongo tests #1548
+- Track position of union member nodes in the parser #1541
+
+## 1.8.0 (17 May 2018)
+
+`1.8.0` has been in prerelease for 6 months. See the prerelease changelog for change-by-change details. Here's a high-level changelog, followed by a detailed list of changes since the last prerelease.
+
+### High-level changes
+
+#### Breaking Changes
+
+- GraphQL-Ruby is not tested on Ruby 2.1. #1070 Because Ruby 2.1 doesn't garbage collect Symbols, it's possible that GraphQL-Ruby will introduce a OOM vulnerability where unique symbols are dynamically created, for example, turning user input into Symbols. No instances of this are known in GraphQL-Ruby ... yet!
+- `GraphQL::Delegate`, a duplicate of Ruby's `Forwardable`, was removed. Use `Forwardable` instead, and update your Ruby if you're on `2.4.0`, due to a performance regression in `Forwardable` in that version.
+- `MySchema.subscriptions.trigger` asserts that its inputs are valid arguments #1400. So if you were previously passing invalid options there, you'll get an error. Remove those options.
+
+#### New Features
+
+- A new class-based API for schema definition. The old API is completely supported, but the new one is much nicer to use. If you migrate, some schema extensions may require a bit of extra work.
+- Built-in support for Mongoid-backed Relay connections
+- `.execute(variables: ...)` and `subscriptions.trigger` both accept Symbol-keyed hashes
+- Lots of other small things around SDL parsing, tracing, runtime ... everything. Read the details below for a full list.
+
+#### Bug Fixes
+
+- Many, many bug fixes. See the detailed list if you're curious about specific bugs.
+
+### Changes since `1.8.0.pre11`:
+
+#### Breaking Changes
+
+- `GraphQL::Schema::Field#initialize`'s signature changed to accept keywords and a block only. `type:`, `description:` and `name:` were moved to keywords. See `Field.from_options` for how the `field(...)` helper's arguments are merged to go to `Field.new`. #1508
+
+#### New Features
+
+- `Schema::Resolver` is a replacement for `GraphQL::Function` #1472
+- Fix subscriptions with class-based schema #1478
+- `Tracing::NewRelicTracing` accepts `set_transaction_name:` to use the GraphQL operation name as the NewRelic transaction name #1430
+
+#### Bug fixes
+
+- Backported `accepts_definition`s are inherited #1514
+- Fix Schema generator's `resolve_type` method #1481
+- Fix constant assignment warnings with interfaces including multiple other interfaces #1465
+- InputObject types loaded from SDL have the proper AST node assigned to them #1512
+
 ## 1.8.0.pre11 (3 May 2018)
 
 ### Breaking changes

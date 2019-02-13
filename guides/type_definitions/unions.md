@@ -1,5 +1,6 @@
 ---
 layout: guide
+doc_stub: false
 search: true
 section: Type Definitions
 title: Unions
@@ -8,7 +9,7 @@ index: 5
 class_based_api: true
 ---
 
-A union type is a set of object types which may appear in the same spot. Here's a union, expressed in [GraphQL Schema Definition Language](http://graphql.org/learn/schema/#type-language) (SDL):
+A union type is a set of object types which may appear in the same spot. Here's a union, expressed in [GraphQL Schema Definition Language](https://graphql.org/learn/schema/#type-language) (SDL):
 
 ```ruby
 union MediaItem = AudioClip | VideoClip | Image | TextSnippet
@@ -53,7 +54,7 @@ end
 Then, extend that one for each union in your schema:
 
 ```ruby
-class Types::CommentSubject < BaseUnion
+class Types::CommentSubject < Types::BaseUnion
   description "Objects which may be commented on"
   possible_types Types::Post, Types::Image
 

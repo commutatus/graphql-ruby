@@ -1,37 +1,42 @@
 ---
 layout: guide
+doc_stub: false
 search: true
 section: Schema
 title: Root Types
 desc: Root types are the entry points for queries, mutations and subscriptions.
 ---
 
-GraphQL queries begin from [root types](http://graphql.org/learn/schema/#the-query-and-mutation-types): `query`, `mutation`, and `subscription` (experimental).
+GraphQL queries begin from [root types](https://graphql.org/learn/schema/#the-query-and-mutation-types): `query`, `mutation`, and `subscription` (experimental).
 
 Attach these to your schema using methods with the same name:
 
 ```ruby
-MySchema = GraphQL::Schema.define do
+class MySchema < GraphQL::Schema
   # required
   query Types::QueryType
   # optional
   mutation Types::MutationType
-  # experimental
   subscription Types::SubscriptionType
 end
 ```
 
-The types are `GraphQL::ObjectTypes`, for example:
+The types are `GraphQL::Schema::Object` classes, for example:
 
 ```ruby
 # app/graphql/types/query_type.rb
-Types::QueryType = GraphQL::ObjectType.define do
-  name "Query"
+class Types::QueryType < GraphQL::Schema::Object
   # ...
 end
 
-Types::MutationType = GraphQL::ObjectType.define { ... }
-Types::SubscriptionType = GraphQL::ObjectType.define { ... }
+# Similarly:
+class Types::MutationType < GraphQL::Schema::Object
+  # ...
+end
+# and
+class Types::SubscriptionType < GraphQL::Schema::Object
+  # ...
+end
 ```
 
 Each type is the entry point for the corresponding GraphQL query:
@@ -47,7 +52,6 @@ mutation AddPost($postAttrs: PostInput!){
   createPost(attrs: $postAttrs)
 }
 
-# Experimental
 subscription CommentAdded {
   # `Subscription.commentAdded`
   commentAdded(postId: 1)

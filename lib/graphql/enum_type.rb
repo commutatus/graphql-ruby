@@ -12,8 +12,8 @@ module GraphQL
   #
   # @example An enum of programming languages
   #   LanguageEnum = GraphQL::EnumType.define do
-  #     name "Languages"
-  #     description "Programming languages for Web projects"
+  #     name "Language"
+  #     description "Programming language for Web projects"
   #     value("PYTHON", "A dynamic, function-oriented language")
   #     value("RUBY", "A very dynamic language aimed at programmer happiness")
   #     value("JAVASCRIPT", "Accidental lingua franca of the web")
@@ -57,7 +57,7 @@ module GraphQL
   #   }
   #
   # @example Enum whose values are different in ActiveRecord-land
-  #   class Language < ActiveRecord::BaseType
+  #   class Language < ActiveRecord::Base
   #     enum language: {
   #       rb: 0
   #     }
@@ -141,10 +141,15 @@ module GraphQL
       attr_accessor :ast_node
       ensure_defined(*ATTRIBUTES)
 
+      undef name=
       def name=(new_name)
         # Validate that the name is correct
         GraphQL::NameValidator.validate!(new_name)
         @name = new_name
+      end
+
+      def graphql_name
+        name
       end
     end
 
@@ -164,6 +169,10 @@ module GraphQL
     def coerce_non_null_input(value_name, ctx)
       if @values_by_name.key?(value_name)
         @values_by_name.fetch(value_name).value
+      elsif match_by_value = @values_by_name.find { |k, v| v.value == value_name }
+        # this is for matching default values, which are "inputs", but they're
+        # the Ruby value, not the GraphQL string.
+        match_by_value[1].value
       else
         nil
       end
