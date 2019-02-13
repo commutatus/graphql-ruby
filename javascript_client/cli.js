@@ -27,6 +27,7 @@ optional arguments:
                                     - otherwise, "project"
   --add-typename                  Automatically adds the "__typename" field to your queries
   --quiet                         Suppress status logging
+  --verbose                       Print debug output
   --help                          Print this message
 `)
 } else {
@@ -46,16 +47,14 @@ optional arguments:
       mode: argv.mode,
       addTypename: argv["add-typename"],
       quiet: argv.hasOwnProperty("quiet"),
+      verbose: argv.hasOwnProperty("verbose"),
     })
 
-    if (result instanceof Promise){
-      result.then(function(res) {
-        if (res === false) {
-          process.exit(1)
-        }
-      })
-    } else if (result === false) {
+    result.then(function(res) {
+      process.exit(0)
+    }).catch(function(_err) {
+      // The error is logged by the function
       process.exit(1)
-    }
+    })
   }
 }

@@ -1,32 +1,28 @@
 # frozen_string_literal: true
+
+require 'rubygems'
+require 'bundler'
+Bundler.require
+
 # Print full backtrace for failiures:
 ENV["BACKTRACE"] = "1"
+# Set this env var to use Interpreter for fixture schemas.
+# Eventually, interpreter will be the default.
+TESTING_INTERPRETER = ENV["TESTING_INTERPRETER"]
+TESTING_RESCUE_FROM = !TESTING_INTERPRETER
 
-def rails_should_be_installed?
-  ENV['WITHOUT_RAILS'] != 'yes'
-end
 require "codeclimate-test-reporter"
 CodeClimate::TestReporter.start
 
-if rails_should_be_installed?
-  require "rake"
-  require "rails/all"
-  require "rails/generators"
-
-  require "jdbc/sqlite3" if RUBY_ENGINE == 'jruby'
-  require "sqlite3" if RUBY_ENGINE == 'ruby'
-  require "pg" if RUBY_ENGINE == 'ruby'
-  require "mongoid" if RUBY_ENGINE == 'ruby'
-  require "sequel"
-end
-
 require "graphql"
+require "rake"
 require "graphql/rake_task"
 require "benchmark"
 require "pry"
 require "minitest/autorun"
 require "minitest/focus"
 require "minitest/reporters"
+
 Minitest::Reporters.use! Minitest::Reporters::DefaultReporter.new(color: true)
 
 Minitest::Spec.make_my_diffs_pretty!
@@ -34,7 +30,6 @@ Minitest::Spec.make_my_diffs_pretty!
 # Filter out Minitest backtrace while allowing backtrace from other libraries
 # to be shown.
 Minitest.backtrace_filter = Minitest::BacktraceFilter.new
-
 
 # This is for convenient access to metadata in test definitions
 assign_metadata_key = ->(target, key, value) { target.metadata[key] = value }
@@ -60,13 +55,20 @@ NO_OP_RESOLVE_TYPE = ->(type, obj, ctx) {
   raise "this should never be called"
 }
 
+# Load dependencies
+['Mongoid', 'Rails'].each do |integration|
+  begin
+    Object.const_get(integration)
+    Dir["#{File.dirname(__FILE__)}/integration/#{integration.downcase}/**/*.rb"].each do |f|
+      require f
+    end
+  rescue NameError
+    # ignore
+  end
+end
+
 # Load support files
 Dir["#{File.dirname(__FILE__)}/support/**/*.rb"].each do |f|
-  unless rails_should_be_installed?
-    next if f.end_with?('star_wars/data.rb')
-    next if f.end_with?('star_trek/data.rb')
-    next if f.end_with?('base_generator_test.rb')
-  end
   require f
 end
 
@@ -104,6 +106,7 @@ module TestTracing
 
     def trace(key, data)
       data[:key] = key
+      data[:path] ||= data.key?(:context) ? data[:context].path : nil
       result = yield
       data[:result] = result
       traces << data

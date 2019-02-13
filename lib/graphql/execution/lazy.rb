@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 require "graphql/execution/lazy/lazy_method_map"
 require "graphql/execution/lazy/resolve"
+
 module GraphQL
   module Execution
     # This wraps a value which is available, but not yet calculated, like a promise or future.
@@ -19,11 +20,17 @@ module GraphQL
         Resolve.resolve(val)
       end
 
+      attr_reader :path, :field
+
       # Create a {Lazy} which will get its inner value by calling the block
+      # @param path [Array<String, Integer>]
+      # @param field [GraphQL::Schema::Field]
       # @param get_value_func [Proc] a block to get the inner value (later)
-      def initialize(&get_value_func)
+      def initialize(path: nil, field: nil, &get_value_func)
         @get_value_func = get_value_func
         @resolved = false
+        @path = path
+        @field = field
       end
 
       # @return [Object] The wrapped value, calling the lazy block if necessary
@@ -31,18 +38,35 @@ module GraphQL
         if !@resolved
           @resolved = true
           @value = begin
-            @get_value_func.call
+            v = @get_value_func.call
+            if v.is_a?(Lazy)
+              v = v.value
+            end
+            v
           rescue GraphQL::ExecutionError => err
             err
           end
         end
-        @value
+
+        if @value.is_a?(StandardError)
+          raise @value
+        else
+          @value
+        end
       end
 
       # @return [Lazy] A {Lazy} whose value depends on another {Lazy}, plus any transformations in `block`
       def then
         self.class.new {
           yield(value)
+        }
+      end
+
+      # @param lazies [Array<Object>] Maybe-lazy objects
+      # @return [Lazy] A lazy which will sync all of `lazies`
+      def self.all(lazies)
+        self.new {
+          lazies.map { |l| l.is_a?(Lazy) ? l.value : l }
         }
       end
 

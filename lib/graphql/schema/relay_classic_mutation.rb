@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+require "graphql/types/string"
 
 module GraphQL
   class Schema
@@ -22,22 +23,56 @@ module GraphQL
     class RelayClassicMutation < GraphQL::Schema::Mutation
       # The payload should always include this field
       field(:client_mutation_id, String, "A unique identifier for the client performing the mutation.", null: true)
+      # Relay classic default:
+      null(true)
 
-
-      # Override {GraphQL::Schema::Mutation#resolve_mutation} to
+      # Override {GraphQL::Schema::Resolver#resolve_with_support} to
       # delete `client_mutation_id` from the kwargs.
-      def resolve_mutation(kwargs)
-        # This is handled by Relay::Mutation::Resolve, a bit hacky, but here we are.
-        kwargs.delete(:client_mutation_id)
-        super
+      def resolve_with_support(**inputs)
+        # Without the interpreter, the inputs are unwrapped by an instrumenter.
+        # But when using the interpreter, no instrumenters are applied.
+        if context.interpreter?
+          input = inputs[:input].to_h
+          # Transfer these from the top-level hash to the
+          # shortcutted `input:` object
+          self.class.extras.each do |ext|
+            input[ext] = inputs[ext]
+          end
+        else
+          input = inputs
+        end
+
+        if input
+          # This is handled by Relay::Mutation::Resolve, a bit hacky, but here we are.
+          input_kwargs = input.to_h
+          client_mutation_id = input_kwargs.delete(:client_mutation_id)
+        else
+          # Relay Classic Mutations with no `argument`s
+          # don't require `input:`
+          input_kwargs = {}
+        end
+
+        return_value = if input_kwargs.any?
+          super(input_kwargs)
+        else
+          super()
+        end
+
+        # Again, this is done by an instrumenter when using non-interpreter execution.
+        if context.interpreter?
+          context.schema.after_lazy(return_value) do |return_hash|
+            # It might be an error
+            if return_hash.is_a?(Hash)
+              return_hash[:client_mutation_id] = client_mutation_id
+            end
+            return_hash
+          end
+        else
+          return_value
+        end
       end
 
       class << self
-        def inherited(base)
-          base.null(true)
-          super
-        end
-
         # The base class for generated input object types
         # @param new_class [Class] The base class to use for generating input object definitions
         # @return [Class] The base class for this mutation's generated input object (default is {GraphQL::Schema::InputObject})
@@ -57,15 +92,16 @@ module GraphQL
           @input_type ||= generate_input_type
         end
 
-        private
-
-        # Extend {Schema::Mutation.generate_field} to add the `input` argument
-        def generate_field
-          field_instance = super
-          field_instance.own_arguments.clear
-          field_instance.argument(:input, input_type, required: true)
-          field_instance
+        # Extend {Schema::Mutation.field_options} to add the `input` argument
+        def field_options
+          sig = super
+          # Arguments were added at the root, but they should be nested
+          sig[:arguments].clear
+          sig[:arguments][:input] = { type: input_type, required: true }
+          sig
         end
+
+        private
 
         # Generate the input type for the `input:` argument
         # To customize how input objects are generated, override this method

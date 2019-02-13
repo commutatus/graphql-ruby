@@ -36,8 +36,10 @@ module GraphQL
   class Argument
     include GraphQL::Define::InstanceDefinable
     accepts_definitions :name, :type, :description, :default_value, :as, :prepare
-    attr_accessor :type, :description, :default_value, :name, :as
+    attr_reader :default_value
+    attr_accessor :description, :name, :as
     attr_accessor :ast_node
+    alias :graphql_name :name
 
     ensure_defined(:name, :description, :default_value, :type=, :type, :as, :expose_as, :prepare)
 
@@ -64,7 +66,7 @@ module GraphQL
         @default_value = nil
       else
         @has_default_value = true
-        @default_value = new_default_value
+        @default_value = GraphQL::Argument.deep_stringify(new_default_value)
       end
     end
 
@@ -85,6 +87,11 @@ module GraphQL
     # @return [String] The name of this argument inside `resolve` functions
     def expose_as
       @expose_as ||= (@as || @name).to_s
+    end
+
+    # Backport this to support legacy-style directives
+    def keyword
+      @keyword ||= GraphQL::Schema::Member::BuildType.underscore(expose_as).to_sym
     end
 
     # @param value [Object] The incoming value from variables or query string literal
@@ -124,6 +131,22 @@ module GraphQL
         type_or_argument.redefine(kwargs, &block)
       else
         GraphQL::Argument.define(kwargs, &block)
+      end
+    end
+
+    # @api private
+    def self.deep_stringify(val)
+      case val
+      when Array
+        val.map { |v| deep_stringify(v) }
+      when Hash
+        new_val = {}
+        val.each do |k, v|
+          new_val[k.to_s] = deep_stringify(v)
+        end
+        new_val
+      else
+        val
       end
     end
   end

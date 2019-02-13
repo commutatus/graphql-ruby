@@ -1,5 +1,6 @@
 ---
 layout: guide
+doc_stub: false
 search: true
 title: Introspection
 section: Schema
@@ -8,7 +9,7 @@ class_based_api: true
 index: 2
 ---
 
-A GraphQL schema has a [built-in introspection system](http://graphql.org/learn/introspection/) that publishes the schema's structure. In fact, the introspection system can be queried using GraphQL, for example:
+A GraphQL schema has a [built-in introspection system](https://graphql.org/learn/introspection/) that publishes the schema's structure. In fact, the introspection system can be queried using GraphQL, for example:
 
 ```graphql
 {
@@ -176,7 +177,7 @@ This class an object type definition, so you can override fields or add new ones
 
 The GraphQL spec describes a field which may be added to _any_ selection: `__typename`. It returns the name of the current GraphQL type.
 
-You can add fields like this (or override `__typename`) by creating a custom `DynmaicFields` defintion:
+You can add fields like this (or override `__typename`) by creating a custom `DynamicFields` defintion:
 
 ```ruby
 module Introspection

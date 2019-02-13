@@ -4,6 +4,7 @@ require "spec_helper"
 describe GraphQL::Schema::Object do
   describe "class attributes" do
     let(:object_class) { Jazz::Ensemble }
+
     it "tells type data" do
       assert_equal "Ensemble", object_class.graphql_name
       assert_equal "A group of musicians playing together", object_class.description
@@ -11,6 +12,12 @@ describe GraphQL::Schema::Object do
       assert_equal 3, object_class.interfaces.size
       # Compatibility methods are delegated to the underlying BaseType
       assert object_class.respond_to?(:connection_type)
+    end
+
+    describe "path" do
+      it "is the type name" do
+        assert_equal "Ensemble", object_class.path
+      end
     end
 
     it "inherits fields and interfaces" do
@@ -52,6 +59,50 @@ describe GraphQL::Schema::Object do
         anonymous_class.graphql_name
       end
     end
+
+    class OverrideNameObject < GraphQL::Schema::Object
+      class << self
+        def default_graphql_name
+          "Override"
+        end
+      end
+    end
+
+    it "can override the default graphql_name" do
+      override_name_object = OverrideNameObject
+
+      assert_equal "Override", override_name_object.graphql_name
+    end
+  end
+
+  describe "implementing interfaces" do
+    it "raises an error when trying to implement a non-interface module" do
+      object_type = Class.new(GraphQL::Schema::Object)
+
+      module NotAnInterface
+      end
+
+      err = assert_raises do
+        object_type.implements(NotAnInterface)
+      end
+
+      message = "NotAnInterface cannot be implemented since it's not a GraphQL Interface. Use `include` for plain Ruby modules."
+      assert_equal message, err.message
+    end
+
+    it "does not inherit singleton methods from base interface when implementing another interface" do
+      object_type = Class.new(GraphQL::Schema::Object)
+      methods = object_type.singleton_methods
+      method_defs = Hash[methods.zip(methods.map{|method| object_type.method(method.to_sym)})]
+
+      module InterfaceType
+        include GraphQL::Schema::Interface
+      end
+
+      object_type.implements(InterfaceType)
+      new_method_defs = Hash[methods.zip(methods.map{|method| object_type.method(method.to_sym)})]
+      assert_equal method_defs, new_method_defs
+    end
   end
 
   describe "wrapping a Hash" do
@@ -83,7 +134,23 @@ describe GraphQL::Schema::Object do
     end
   end
 
-  describe ".to_graphql_type" do
+  describe "wrapping `nil`" do
+    it "doesn't wrap nil in lists" do
+      query_str = <<-GRAPHQL
+      {
+        namedEntities {
+          name
+        }
+      }
+      GRAPHQL
+
+      res = Jazz::Schema.execute(query_str)
+      expected_items = [{"name" => "Bela Fleck and the Flecktones"}, nil]
+      assert_equal expected_items, res["data"]["namedEntities"]
+    end
+  end
+
+  describe ".to_graphql" do
     let(:obj_type) { Jazz::Ensemble.to_graphql }
     it "returns a matching GraphQL::ObjectType" do
       assert_equal "Ensemble", obj_type.name
@@ -169,7 +236,9 @@ describe GraphQL::Schema::Object do
     it "skips fields properly" do
       query_str = "{ find(id: \"MagicalSkipId\") { __typename } }"
       res = Jazz::Schema.execute(query_str)
-      assert_equal({"data" => nil }, res.to_h)
+      # TBH I think `{}` is probably righter than `nil`, I guess we'll see.
+      skip_value = TESTING_INTERPRETER ? {} : nil
+      assert_equal({"data" => skip_value }, res.to_h)
     end
   end
 end

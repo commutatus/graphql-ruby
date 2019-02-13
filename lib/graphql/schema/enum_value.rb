@@ -27,16 +27,20 @@ module GraphQL
     #   end
     class EnumValue < GraphQL::Schema::Member
       include GraphQL::Schema::Member::AcceptsDefinition
+      include GraphQL::Schema::Member::HasPath
 
       attr_reader :graphql_name
 
       # @return [Class] The enum type that owns this value
       attr_reader :owner
 
+      # @return [String] Explains why this value was deprecated (if present, this will be marked deprecated in introspection)
+      attr_accessor :deprecation_reason
+
       def initialize(graphql_name, desc = nil, owner:, description: nil, value: nil, deprecation_reason: nil, &block)
         @graphql_name = graphql_name.to_s
         @description = desc || description
-        @value = value || @graphql_name
+        @value = value.nil? ? @graphql_name : value
         @deprecation_reason = deprecation_reason
         @owner = owner
 
@@ -53,7 +57,7 @@ module GraphQL
       end
 
       def value(new_val = nil)
-        if new_val
+        unless new_val.nil?
           @value = new_val
         end
         @value
@@ -69,6 +73,10 @@ module GraphQL
         enum_value.metadata[:type_class] = self
         enum_value
       end
+
+      def visible?(_ctx); true; end
+      def accessible?(_ctx); true; end
+      def authorized?(_ctx); true; end
     end
   end
 end

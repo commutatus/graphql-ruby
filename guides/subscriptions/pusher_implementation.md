@@ -1,5 +1,6 @@
 ---
 layout: guide
+doc_stub: false
 search: true
 section: Subscriptions
 title: Pusher Implementation
@@ -8,7 +9,7 @@ index: 6
 pro: true
 ---
 
-[GraphQL Pro](http://graphql.pro) includes a subscription system based on [Redis](http://redis.io) and [Pusher](http://pusher.com) which works with any Ruby web framework.
+[GraphQL Pro](https://graphql.pro) includes a subscription system based on [Redis](https://redis.io) and [Pusher](https://pusher.com) which works with any Ruby web framework.
 
 After creating an app on Pusher and [configuring the Ruby gem](https://github.com/pusher/pusher-http-ruby#global), you can hook it up to your GraphQL schema.
 
@@ -85,7 +86,7 @@ appendonly yes
 
 Otherwise, Redis will drop data that doesn't fit in memory (read more in ["Redis persistence"](https://redis.io/topics/persistence)).
 
-If you're already using Redis in your application, see ["Storing Data in Redis"](http://www.mikeperham.com/2015/09/24/storing-data-with-redis/) for options to isolate data and tune your configuration.
+If you're already using Redis in your application, see ["Storing Data in Redis"](https://www.mikeperham.com/2015/09/24/storing-data-with-redis/) for options to isolate data and tune your configuration.
 
 ## Schema configuration
 
@@ -105,7 +106,7 @@ $graphql_subscriptions_redis = Redis.new # default connection
 Then, that Redis client is passed to the Subscription configuration:
 
 ```ruby
-MySchema = GraphQL::Schema.define do
+class MySchema < GraphQL::Schema
   use GraphQL::Pro::Subscriptions, redis: $graphql_subscriptions_redis
 end
 ```
@@ -219,7 +220,7 @@ end
 Then, use your _custom_ subscriptions class instead of the built-in one for your schema:
 
 ```ruby
-MySchema = GraphQL::Schema.define do
+class MySchema < GraphQL::Schema
   # Use custom subscriptions instead of GraphQL::Pro::Subscriptions
   # to get custom serialization logic
   use CustomSubscriptions, redis: $redis

@@ -29,7 +29,7 @@ module GraphQL
       end
     end
 
-    attr_reader :schema, :context, :warden, :provided_variables
+    attr_reader :schema, :context, :provided_variables
 
     # The value for root types
     attr_accessor :root_value
@@ -60,9 +60,6 @@ module GraphQL
     # @return [String, nil] the triggered event, if this query is a subscription update
     attr_reader :subscription_topic
 
-    # @return [String, nil]
-    attr_reader :operation_name
-
     attr_reader :tracers
 
     # Prepare query `query_string` on `schema`
@@ -76,7 +73,9 @@ module GraphQL
     # @param max_complexity [Numeric] the maximum field complexity for this query (falls back to schema-level value)
     # @param except [<#call(schema_member, context)>] If provided, objects will be hidden from the schema when `.call(schema_member, context)` returns truthy
     # @param only [<#call(schema_member, context)>] If provided, objects will be hidden from the schema when `.call(schema_member, context)` returns false
-    def initialize(schema, query_string = nil, query: nil, document: nil, context: nil, variables: {}, validate: true, subscription_topic: nil, operation_name: nil, root_value: nil, max_depth: nil, max_complexity: nil, except: nil, only: nil)
+    def initialize(schema, query_string = nil, query: nil, document: nil, context: nil, variables: nil, validate: true, subscription_topic: nil, operation_name: nil, root_value: nil, max_depth: nil, max_complexity: nil, except: nil, only: nil)
+      # Even if `variables: nil` is passed, use an empty hash for simpler logic
+      variables ||= {}
       @schema = schema
       @filter = schema.default_filter.merge(except: except, only: only)
       @context = schema.context_class.new(query: self, object: root_value, values: context)
@@ -128,10 +127,29 @@ module GraphQL
 
       @result_values = nil
       @executed = false
+
+      # TODO add a general way to define schema-level filters
+      # TODO also add this to schema dumps
+      if @schema.respond_to?(:visible?)
+        merge_filters(only: @schema.method(:visible?))
+      end
     end
+
+    def_delegators :@schema, :interpreter?
 
     def subscription_update?
       @subscription_topic && subscription?
+    end
+
+    # A lookahead for the root selections of this query
+    # @return [GraphQL::Execution::Lookahead]
+    def lookahead
+      @lookahead ||= begin
+        ast_node = selected_operation
+        root_type = warden.root_type_for_operation(ast_node.operation_type || "query")
+        root_type = root_type.metadata[:type_class] || raise("Invariant: `lookahead` only works with class-based types")
+        GraphQL::Execution::Lookahead.new(query: self, root_type: root_type, ast_nodes: [ast_node])
+      end
     end
 
     # @api private
@@ -212,20 +230,16 @@ module GraphQL
       @arguments_cache[irep_or_ast_node][definition]
     end
 
-    # @return [GraphQL::Language::Nodes::OperationDefinition, nil]
-    def selected_operation
-      with_prepared_ast { @selected_operation }
-    end
-
     def validation_pipeline
       with_prepared_ast { @validation_pipeline }
     end
 
-    def_delegators :validation_pipeline, :validation_errors, :internal_representation, :analyzers
+    def_delegators :validation_pipeline, :validation_errors, :internal_representation,
+                   :analyzers, :ast_analyzers, :max_depth, :max_complexity
 
     attr_accessor :analysis_errors
     def valid?
-      validation_pipeline.valid? && analysis_errors.none?
+      validation_pipeline.valid? && analysis_errors.empty?
     end
 
     def warden

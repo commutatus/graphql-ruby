@@ -1,5 +1,6 @@
 ---
 layout: guide
+doc_stub: false
 search: true
 title: Related Projects
 section: Other
@@ -10,18 +11,19 @@ Want to add something? Please open a pull request [on GitHub](https://github.com
 
 ## Code
 
-- `graphql-ruby` + Rails demo ([src](https://github.com/rmosolgo/graphql-ruby-demo) / [heroku](http://graphql-ruby-demo.herokuapp.com))
+- `graphql-ruby` + Rails demo ([src](https://github.com/rmosolgo/graphql-ruby-demo) / [heroku](https://graphql-ruby-demo.herokuapp.com))
 - `graphql-ruby` + Sinatra demo ([src](https://github.com/robinjmurphy/ruby-graphql-server-example) / [heroku](https://ruby-graphql-server-example.herokuapp.com/))
 - [`graphql-batch`](https://github.com/shopify/graphql-batch), a batched query execution strategy
+- [`graphql-cache`](https://github.com/stackshareio/graphql-cache), a resolver-level caching solution
 - [`graphql-libgraphqlparser`](https://github.com/rmosolgo/graphql-libgraphqlparser-ruby), bindings to [libgraphqlparser](https://github.com/graphql/libgraphqlparser), a C-level parser.
 - [`graphql-docs`](https://github.com/gjtorikian/graphql-docs), a tool to automatically generate static HTML documentation from your GraphQL implementation
+- [`graphql-metrics`](https://github.com/Shopify/graphql-metrics), a plugin to extract fine-grain metrics of GraphQL queries received by your server
 - Rails Helpers:
   - [`graphql-activerecord`](https://github.com/goco-inc/graphql-activerecord)
   - [`graphql-rails-resolve`](https://github.com/colepatrickturner/graphql-rails-resolver)
   - [`graphql-query-resolver`](https://github.com/nettofarah/graphql-query-resolver), a graphql-ruby add-on to minimize N+1 queries.
   - [`graphql-rails_logger`](https://github.com/jetruby/graphql-rails_logger), a logger which allows you to inspect GraphQL queries in a more readable format.
   - [`apollo_upload_server-ruby`](https://github.com/jetruby/apollo_upload_server-ruby), a middleware which allows you to upload files with GraphQL and multipart/form-data using [`apollo-upload-client`](https://github.com/jaydenseric/apollo-upload-client) library on front-end.
-- [optics-agent-ruby](https://github.com/apollostack/optics-agent-ruby), a graphql-ruby agent for use with the [Apollo Optics](http://www.apollodata.com/optics) GraphQL performance tool.
 - [`search_object_graphql`](https://github.com/rstankov/SearchObjectGraphQL), a DSL for defining search resolvers for GraphQL.
 
 ## Blog Posts

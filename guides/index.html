@@ -20,7 +20,7 @@ rails generate graphql:install
       <div class="teaser">
         <p>
           <a href="{{ site.baseurl}}/getting_started">Get going fast</a> with the <code><a href="https://rubygems.org/gems/graphql">graphql</a></code> gem,
-          battle-tested and trusted by <a href="https://githubengineering.com/the-github-graphql-api/#open-source">GitHub</a> and <a href="http://www.graphql.com/articles/graphql-at-shopify">Shopify</a>.
+          battle-tested and trusted by <a href="https://githubengineering.com/the-github-graphql-api/#open-source">GitHub</a>, <a href="https://www.graphql.com/articles/graphql-at-shopify">Shopify</a> and <a href="https://www.kickstarter.com/">Kickstarter</a>.
         </p>
       </div>
     </div>
@@ -31,18 +31,17 @@ rails generate graphql:install
       <div class="teaser">
         <p>
           Describe your application with the
-          <a href="{{ site.baseurl }}/types/introduction">GraphQL type system</a>
+          <a href="{{ site.baseurl }}/schema/definition">GraphQL type system</a>
           to create a self-documenting, strongly-typed API.
         </p>
       </div>
       <div class="teaser">
 {% highlight ruby %}
 # app/graphql/types/profile_type.rb
-Types::ProfileType = GraphQL::ObjectType.define do
-  name "Profile"
-  field :id, !types.ID
-  field :name, !types.String
-  field :avatar, Types::PhotoType
+class Types::ProfileType < Types::BaseObject
+  field :id, ID, null: false
+  field :name, String, null: false
+  field :avatar, Types::PhotoType, null: true
 end
 {% endhighlight %}
       </div>
@@ -73,5 +72,5 @@ render json: result
 </div>
 
 <h3 style="text-align: center;">
-  Add <a href="http://graphql.org">GraphQL</a> to your Ruby app. <a href="{{ site.baseurl}}/getting_started">Get Started!</a>
+  Add <a href="https://graphql.org">GraphQL</a> to your Ruby app. <a href="{{ site.baseurl}}/getting_started">Get Started!</a>
 </h3>

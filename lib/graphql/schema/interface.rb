@@ -9,6 +9,9 @@ module GraphQL
         include GraphQL::Schema::Member::BaseDSLMethods
         include GraphQL::Schema::Member::TypeSystemHelpers
         include GraphQL::Schema::Member::HasFields
+        include GraphQL::Schema::Member::HasPath
+        include GraphQL::Schema::Member::RelayShortcuts
+        include GraphQL::Schema::Member::Scoped
 
         # Methods defined in this block will be:
         # - Added as class methods to this interface
@@ -17,18 +20,48 @@ module GraphQL
           self::DefinitionMethods.module_eval(&block)
         end
 
+        # The interface is visible if any of its possible types are visible
+        def visible?(context)
+          context.schema.possible_types(self).each do |type|
+            if context.schema.visible?(type, context)
+              return true
+            end
+          end
+          false
+        end
+
+        # The interface is accessible if any of its possible types are accessible
+        def accessible?(context)
+          context.schema.possible_types(self).each do |type|
+            if context.schema.accessible?(type, context)
+              return true
+            end
+          end
+          false
+        end
+
         # Here's the tricky part. Make sure behavior keeps making its way down the inheritance chain.
         def included(child_class)
           if !child_class.is_a?(Class)
             # In this case, it's been included into another interface.
             # This is how interface inheritance is implemented
-            child_class.const_set(:DefinitionMethods, Module.new)
-            child_class.extend(child_class::DefinitionMethods)
+
             # We need this before we can call `own_interfaces`
             child_class.extend(Schema::Interface::DefinitionMethods)
+
             child_class.own_interfaces << self
-            child_class.own_interfaces.each do |interface_defn|
+            child_class.interfaces.reverse_each do |interface_defn|
               child_class.extend(interface_defn::DefinitionMethods)
+            end
+
+            # Use an instance variable to tell whether it's been included previously or not;
+            # You can't use constant detection because constants are brought into scope
+            # by `include`, which has already happened at this point.
+            if !child_class.instance_variable_defined?(:@_definition_methods)
+              defn_methods_module = Module.new
+              child_class.instance_variable_set(:@_definition_methods, defn_methods_module)
+              child_class.const_set(:DefinitionMethods, defn_methods_module)
+              child_class.extend(child_class::DefinitionMethods)
             end
           elsif child_class < GraphQL::Schema::Object
             # This is being included into an object type, make sure it's using `implements(...)`
@@ -76,12 +109,20 @@ module GraphQL
         def own_interfaces
           @own_interfaces ||= []
         end
+
+        def interfaces
+          own_interfaces + (own_interfaces.map { |i| i.own_interfaces }).flatten
+        end
       end
 
       # Extend this _after_ `DefinitionMethods` is defined, so it will be used
       extend GraphQL::Schema::Member::AcceptsDefinition
 
       extend DefinitionMethods
+
+      def unwrap
+        self
+      end
     end
   end
 end

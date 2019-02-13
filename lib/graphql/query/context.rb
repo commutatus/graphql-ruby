@@ -7,7 +7,7 @@ module GraphQL
     # It delegates `[]` to the hash that's passed to `GraphQL::Query#initialize`.
     class Context
       module SharedMethods
-        # @return [Object] The target for field resultion
+        # @return [Object] The target for field resolution
         attr_accessor :object
 
         # @return [Hash, Array, String, Integer, Float, Boolean, nil] The resolved value for this field
@@ -73,6 +73,12 @@ module GraphQL
 
         def execution_errors
           @execution_errors ||= ExecutionErrors.new(self)
+        end
+
+        def lookahead
+          ast_nodes = irep_node.ast_nodes
+          field = irep_node.definition.metadata[:type_class] || raise("Lookahead is only compatible with class-based schemas")
+          Execution::Lookahead.new(query: query, ast_nodes: ast_nodes, field: field)
         end
       end
 
@@ -152,10 +158,13 @@ module GraphQL
       end
 
       # @api private
+      attr_writer :interpreter
+
+      # @api private
       attr_writer :value
 
-      def_delegators :@provided_values, :[], :[]=, :to_h, :key?, :fetch
-      def_delegators :@query, :trace
+      def_delegators :@provided_values, :[], :[]=, :to_h, :to_hash, :key?, :fetch, :dig
+      def_delegators :@query, :trace, :interpreter?
 
       # @!method [](key)
       #   Lookup `key` from the hash passed to {Schema#execute} as `context:`
@@ -207,16 +216,22 @@ module GraphQL
           @query = context.query
           @schema = context.schema
           @tracers = @query.tracers
+          # This hack flag is required by ConnectionResolve
+          @wrapped_connection = false
+          @wrapped_object = false
         end
+
+        # @api private
+        attr_accessor :wrapped_connection, :wrapped_object
 
         def path
           @path ||= @parent.path.dup << @key
         end
 
         def_delegators :@context,
-          :[], :[]=, :key?, :fetch, :to_h, :namespace,
-          :spawn, :schema, :warden, :errors,
-          :execution_strategy, :strategy
+          :[], :[]=, :key?, :fetch, :to_h, :namespace, :dig,
+          :spawn, :warden, :errors,
+          :execution_strategy, :strategy, :interpreter?
 
         # @return [GraphQL::Language::Nodes::Field] The AST node for the currently-executing field
         def ast_node

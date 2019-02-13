@@ -217,6 +217,34 @@ TABLE
     end
   end
 
+  describe "read values" do
+    let(:context) { GraphQL::Query::Context.new(query: OpenStruct.new(schema: schema), values: {a: {b: 1}}, object: nil) }
+
+    it "allows you to read values of contexts using []" do
+      assert_equal({b: 1}, context[:a])
+    end
+
+    it "allows you to read values of contexts using dig" do
+      if RUBY_VERSION >= '2.3.0'
+        assert_equal(1, context.dig(:a, :b))
+      else
+        assert_raises NoMethodError do
+          context.dig(:a, :b)
+        end
+      end
+    end
+  end
+
+  describe "splatting" do
+    let(:context) { GraphQL::Query::Context.new(query: OpenStruct.new(schema: schema), values: {a: {b: 1}}, object: nil) }
+
+    let(:splat) { ->(**context) { context } }
+
+    it "runs successfully" do
+      assert_equal({a: { b: 1 }}, splat.call(context))
+    end
+  end
+
   describe "accessing context after the fact" do
     let(:query_string) { %|
       { pushContext }
