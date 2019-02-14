@@ -70,6 +70,55 @@ describe GraphQL::Execution::Lazy do
       assert_equal expected_data, res["data"]
     end
 
+    # This only works with the interpreter
+    if TESTING_INTERPRETER
+      [
+        [1, 2, LazyHelpers::MAGIC_NUMBER_WITH_LAZY_AUTHORIZED_HOOK],
+        [2, LazyHelpers::MAGIC_NUMBER_WITH_LAZY_AUTHORIZED_HOOK, 1],
+        [LazyHelpers::MAGIC_NUMBER_WITH_LAZY_AUTHORIZED_HOOK, 1, 2],
+      ].each do |ordered_values|
+        it "resolves each field at one depth before proceeding to the next depth (using #{ordered_values})" do
+          res = run_query <<-GRAPHQL, variables: { values: ordered_values }
+          query($values: [Int!]!) {
+            listSum(values: $values) {
+              nestedSum(value: 3) {
+                value
+              }
+            }
+          }
+          GRAPHQL
+
+          # Even though magic number `44`'s `.authorized?` hook returns a lazy value,
+          # these fields should be resolved together and return the same value.
+          assert_equal 56, res["data"]["listSum"][0]["nestedSum"]["value"]
+          assert_equal 56, res["data"]["listSum"][1]["nestedSum"]["value"]
+          assert_equal 56, res["data"]["listSum"][2]["nestedSum"]["value"]
+        end
+      end
+
+      it "Handles fields that return nil" do
+        values = [
+          LazyHelpers::MAGIC_NUMBER_THAT_RETURNS_NIL,
+          LazyHelpers::MAGIC_NUMBER_WITH_LAZY_AUTHORIZED_HOOK,
+          1,
+          2,
+        ]
+
+        res = run_query <<-GRAPHQL, variables: { values: values }
+        query($values: [Int!]!) {
+          listSum(values: $values) {
+            nullableNestedSum(value: 3) {
+              value
+            }
+          }
+        }
+        GRAPHQL
+
+        values = res["data"]["listSum"].map { |s| s && s["nullableNestedSum"]["value"] }
+        assert_equal [nil, 56, 56, 56], values
+      end
+    end
+
     it "propagates nulls to the root" do
       res = run_query %|
       {
@@ -155,6 +204,23 @@ describe GraphQL::Execution::Lazy do
     end
   end
 
+  describe "Schema#sync_lazy(object)" do
+    it "Passes objects to that hook at runtime" do
+      res = run_query <<-GRAPHQL
+      {
+        a: nullableNestedSum(value: 1001) { value }
+        b: nullableNestedSum(value: 1013) { value }
+        c: nullableNestedSum(value: 1002) { value }
+      }
+      GRAPHQL
+
+      # This odd, non-adding behavior is hacked into `#sync_lazy`
+      assert_equal 101, res["data"]["a"]["value"]
+      assert_equal 113, res["data"]["b"]["value"]
+      assert_equal 102, res["data"]["c"]["value"]
+    end
+  end
+
   describe "LazyMethodMap" do
     class SubWrapper < LazyHelpers::Wrapper; end
 
@@ -165,7 +231,7 @@ describe GraphQL::Execution::Lazy do
       map.set(LazyHelpers::SumAll, :value)
       b = LazyHelpers::Wrapper.new(1)
       sub_b = LazyHelpers::Wrapper.new(2)
-      s = LazyHelpers::SumAll.new({}, 3)
+      s = LazyHelpers::SumAll.new(3)
       assert_equal(:item, map.get(b))
       assert_equal(:item, map.get(sub_b))
       assert_equal(:value, map.get(s))

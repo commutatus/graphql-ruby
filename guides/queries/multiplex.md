@@ -1,13 +1,14 @@
 ---
 title: Multiplex
 layout: guide
+doc_stub: false
 search: true
 section: Queries
 desc: Run multiple queries concurrently
 index: 10
 ---
 
-Some clients may send _several_ queries to the server at once (for example, [Apollo Client's query batching](http://dev.apollodata.com/core/network.html#query-batching)). You can execute them concurrently with {{ "Schema#multiplex" | api_doc }}.
+Some clients may send _several_ queries to the server at once (for example, [Apollo Client's query batching](https://www.apollographql.com/docs/react/advanced/network-layer.html#query-batching)). You can execute them concurrently with {{ "Schema#multiplex" | api_doc }}.
 
 Multiplex runs have their own context, analyzers and instrumentation.
 
@@ -55,7 +56,7 @@ def execute
   context = {}
 
   # Apollo sends the params in a _json variable when batching is enabled
-  # see the Apollo Documentation about query batching: http://dev.apollodata.com/core/network.html#query-batching
+  # see the Apollo Documentation about query batching: https://www.apollographql.com/docs/react/advanced/network-layer.html#query-batching
   result = if params[:_json]
     queries = params[:_json].map do |param|
       {
@@ -79,6 +80,8 @@ def execute
 end
 ```
 
+If Apollo Client has issues recognizing the result of `render json: result`, replace it with `render body: result.to_json, content_type: 'application/json'`.
+
 ## Validation and Error Handling
 
 Each query is validated and {% internal_link "analyzed","/queries/analysis" %} independently. The `results` array may include a mix of successful results and failed results
@@ -98,7 +101,7 @@ This will be available to instrumentation as `multiplex.context[:current_user]` 
 You can analyze _all_ queries in a multiplex by adding a multiplex analyzer. For example:
 
 ```ruby
-MySchema = GraphQL::Schema.define do
+class MySchema < GraphQL::Schema do
   # ...
   multiplex_analyzer(MyAnalyzer)
 end
@@ -133,7 +136,7 @@ end
 
 # ...
 
-MySchema = GraphQL::Schema.define do
+class MySchema < GraphQL::Schema
   # ...
   instrument(:multiplex, MultiplexCounter)
 end

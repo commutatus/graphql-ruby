@@ -1,5 +1,6 @@
 ---
 layout: guide
+doc_stub: false
 search: true
 section: Schema
 title: Class-based API
@@ -9,8 +10,6 @@ index: 10
 ---
 
 In GraphQL `1.8`+, you can use Ruby classes to build your schema. You can __mix__ class-style and `.define`-style type definitions in a schema.
-
-(`1.8` is currently in prerelease, check [RubyGems](https://rubygems.org/gems/graphql) for the latest version.)
 
 You can get an overview of this new feature:
 
@@ -29,7 +28,7 @@ And learn about the APIs:
 - {% internal_link "Enum classes", "/type_definitions/enums" %}
 - {% internal_link "Input Object classes", "/type_definitions/input_objects" %}
 - {% internal_link "Scalar classes", "/type_definitions/scalars" %}
-- {% internal_link "Customizing definitoins", "/type_definitions/extensions" %}
+- {% internal_link "Customizing definitions", "/type_definitions/extensions" %}
 - {% internal_link "Custom introspection", "/schema/introspection" %}
 
 ## Rationale & Goals
@@ -138,7 +137,7 @@ This transformation may not be perfect, but it should cover the most common case
 
 ### Using the Default Upgrade Task
 
-The upgrader ships with rake tasks, included as a railtie ([source](https://github.com/rmosolgo/graphql-ruby/blob/1.8-dev/lib/graphql/railtie.rb)). The railtie will be automatically installed by your Rails app, and it provides the following tasks:
+The upgrader ships with rake tasks, included as a railtie ([source](https://github.com/rmosolgo/graphql-ruby/blob/v1.8.0/lib/graphql/railtie.rb)). The railtie will be automatically installed by your Rails app, and it provides the following tasks:
 
 - `graphql:upgrade:schema[path/to/schema.rb]`: upgrade the Schema file
 - `graphql:upgrade:member[path/to/some/type.rb]`: upgrade a type definition (object, interface, union, etc)
@@ -277,6 +276,7 @@ Here is a working plan for rolling out this feature:
   - ☐ Update all GraphQL-Ruby docs to reflect this new API
 - graphql 1.10:
   - ☐ Begin sunsetting `.define`: isolate it in its own module
+- graphql 2.0:
   - ☐ Remove `.define`
 
 ## Common Type Configurations

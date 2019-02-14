@@ -22,13 +22,18 @@ module GraphQL
       end
 
       def platform_trace(platform_key, key, data)
+        if key == "execute_query"
+          operation_type = data[:query].selected_operation.operation_type
+          operation_name = data[:query].selected_operation.selections.first.name
+          ScoutApm::Transaction.rename("GraphQL/#{operation_type}.#{operation_name}")
+        end       
         self.class.instrument("GraphQL", platform_key, INSTRUMENT_OPTS) do
           yield
         end
       end
 
       def platform_field_key(type, field)
-        "#{type.name}.#{field.name}"
+        "#{type.graphql_name}.#{field.graphql_name}"
       end
     end
   end

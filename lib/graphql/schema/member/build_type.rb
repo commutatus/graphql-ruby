@@ -16,15 +16,15 @@ module GraphQL
           when String
             case type_expr
             when "String"
-              GraphQL::STRING_TYPE
+              GraphQL::Types::String
             when "Int", "Integer"
-              GraphQL::INT_TYPE
+              GraphQL::Types::Int
             when "Float"
-              GraphQL::FLOAT_TYPE
+              GraphQL::Types::Float
             when "Boolean"
-              GraphQL::BOOLEAN_TYPE
+              GraphQL::Types::Boolean
             when "ID"
-              GraphQL::ID_TYPE
+              GraphQL::Types::ID
             when /\A\[.*\]\Z/
               list_type = true
               # List members are required by default
@@ -33,7 +33,7 @@ module GraphQL
               null = false
               parse_type(type_expr[0..-2], null: true)
             else
-              maybe_type = Object.const_get(type_expr)
+              maybe_type = constantize(type_expr)
               case maybe_type
               when GraphQL::BaseType
                 maybe_type
@@ -101,13 +101,15 @@ module GraphQL
           when Array
             to_type_name(something.first)
           when Module
-            if something < GraphQL::Schema::Member
+            if something.respond_to?(:graphql_name)
               something.graphql_name
             else
-              something.name.split("::").last
+              to_type_name(something.name)
             end
           when String
             something.gsub(/\]\[\!/, "").split("::").last
+          when GraphQL::Schema::NonNull, GraphQL::Schema::List
+            to_type_name(something.unwrap)
           else
             raise "Unhandled to_type_name input: #{something} (#{something.class})"
           end
@@ -121,6 +123,38 @@ module GraphQL
             camelized = "#{match_data[0]}#{camelized}"
           end
           camelized
+        end
+
+        # Resolves constant from string (based on Rails `ActiveSupport::Inflector.constantize`)
+        def constantize(string)
+          names = string.split('::')
+
+          # Trigger a built-in NameError exception including the ill-formed constant in the message.
+          Object.const_get(string) if names.empty?
+
+          # Remove the first blank element in case of '::ClassName' notation.
+          names.shift if names.size > 1 && names.first.empty?
+
+          names.inject(Object) do |constant, name|
+            if constant == Object
+              constant.const_get(name)
+            else
+              candidate = constant.const_get(name)
+              next candidate if constant.const_defined?(name, false)
+              next candidate unless Object.const_defined?(name)
+
+              # Go down the ancestors to check if it is owned directly. The check
+              # stops when we reach Object or the end of ancestors tree.
+              constant = constant.ancestors.inject do |const, ancestor|
+                break const    if ancestor == Object
+                break ancestor if ancestor.const_defined?(name, false)
+                const
+              end
+
+              # Owner is in Object, so raise.
+              constant.const_get(name, false)
+            end
+          end
         end
 
         def underscore(string)

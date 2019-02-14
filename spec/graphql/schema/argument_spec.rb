@@ -13,6 +13,15 @@ describe GraphQL::Schema::Argument do
 
         argument :aliased_arg, String, required: false, as: :renamed
         argument :prepared_arg, Int, required: false, prepare: :multiply
+        argument :prepared_by_proc_arg, Int, required: false, prepare: ->(val, context) { context[:multiply_by] * val }
+
+        class Multiply
+          def call(val, context)
+            context[:multiply_by] * val
+          end
+        end
+
+        argument :prepared_by_callable_arg, Int, required: false, prepare: Multiply.new
       end
 
       def field(**args)
@@ -26,10 +35,17 @@ describe GraphQL::Schema::Argument do
 
     class Schema < GraphQL::Schema
       query(Query)
+      if TESTING_INTERPRETER
+        use GraphQL::Execution::Interpreter
+      end
     end
   end
 
-
+  describe "#path" do
+    it "includes type, field and argument names" do
+      assert_equal "Query.field.argWithBlock", SchemaArgumentTest::Query.fields["field"].arguments["argWithBlock"].path
+    end
+  end
 
   describe "#name" do
     it "reflects camelization" do
@@ -40,7 +56,7 @@ describe GraphQL::Schema::Argument do
   describe "#type" do
     let(:argument) { SchemaArgumentTest::Query.fields["field"].arguments["arg"] }
     it "returns the type" do
-      assert_equal GraphQL::STRING_TYPE, argument.type
+      assert_equal GraphQL::Types::String, argument.type
     end
   end
 
@@ -51,13 +67,19 @@ describe GraphQL::Schema::Argument do
   end
 
   describe "#description" do
+    let(:arg) { SchemaArgumentTest::Query.fields["field"].arguments["arg"] }
     it "sets description" do
-      SchemaArgumentTest::Query.fields["field"].arguments["arg"].description "new description"
-      assert_equal "new description", SchemaArgumentTest::Query.fields["field"].arguments["arg"].description
+      arg.description "new description"
+      assert_equal "new description", arg.description
     end
 
     it "returns description" do
       assert_equal "test", SchemaArgumentTest::Query.fields["field"].arguments["argWithBlock"].description
+    end
+
+    it "has an assignment method" do
+      arg.description = "another new description"
+      assert_equal "another new description", arg.description
     end
   end
 
@@ -82,6 +104,24 @@ describe GraphQL::Schema::Argument do
       res = SchemaArgumentTest::Schema.execute(query_str, context: {multiply_by: 3})
       # Make sure it's getting the renamed symbol:
       assert_equal '{:prepared_arg=>15}', res["data"]["field"]
+    end
+    it "calls the method on the provided Proc" do
+      query_str = <<-GRAPHQL
+      { field(preparedByProcArg: 5) }
+      GRAPHQL
+
+      res = SchemaArgumentTest::Schema.execute(query_str, context: {multiply_by: 3})
+      # Make sure it's getting the renamed symbol:
+      assert_equal '{:prepared_by_proc_arg=>15}', res["data"]["field"]
+    end
+    it "calls the method on the provided callable object" do
+      query_str = <<-GRAPHQL
+      { field(preparedByCallableArg: 5) }
+      GRAPHQL
+
+      res = SchemaArgumentTest::Schema.execute(query_str, context: {multiply_by: 3})
+      # Make sure it's getting the renamed symbol:
+      assert_equal '{:prepared_by_callable_arg=>15}', res["data"]["field"]
     end
   end
 end

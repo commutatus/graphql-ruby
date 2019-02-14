@@ -8,7 +8,146 @@
 
 ### Bug Fix
 
+## 1.9.8 (30 Jan 2019)
+
+### New Features
+
+- Inject `context` into policy lookup hooks instead of just the user
+
+## 1.9.7 (30 Jan 2019)
+
+### New Features
+
+- Extract `pundit_policy` and `scope_by_pundit_policy` hooks for user override
+
+## 1.9.6 (18 Jan 2019)
+
+### Bug Fix
+
+- Properly render subscription context in dashboard
+
+## 1.9.5 (14 Jan 2019)
+
+## Bug Fix
+
+- Don't pass arrays to Pundit scopes (fixes https://github.com/rmosolgo/graphql-ruby/issues/2008)
+
+## 1.9.4 (11 Jan 2019)
+
+## Bug Fix
+
+- Prepare for future compat with graphql-ruby 1.9
+
+## 1.9.3 (3 Dec 2018)
+
+### Bug Fix
+
+- Include table name when adding a default order-by-id to ActiveRecord Relations
+- Raise if a required cursor attribute is missing
+- Improve `rake routes` output for operation store endpoint
+- Support already-parsed queries in subscription RedisStorage
+
+## 1.9.2 (2 Nov 2018)
+
+### Bug Fix
+
+- Derp, remove the dummy app's `.log` files from the gem bundle
+- Fix ordering bug when a SQL function call doesn't have an explicit order
+
+## 1.9.1 (1 Nov 2018)
+
+### Bug Fix
+
+- Fix Pusher reference in AblySubscriptions
+
+## 1.9.0 (27 Oct 2018)
+
+### New Features
+
+- Add `GraphQL::Pro::AblySubscriptions` for GraphQL subscriptions over Ably.io transport
+
+## 1.8.2 (22 Oct 2018)
+
+### Bug Fix
+
+- Support `NULLS LAST` in stable cursors
+
+## 1.8.1 (16 Oct 2018)
+
+### Bug Fix
+
+- Improve operation store models to work when `config.active_record.primary_key_prefix_type` is set
+
+## 1.8.0 (11 Oct 2018)
+
+### New Features
+
+- Support Rails 3.2 with OperationStore
+- Use `.select` to filter items in CanCanIntegration
+
+### Bug Fix
+
+- Properly send an _ability_ and the configured `can_can_action` to `.accessible_by`
+- Use a string (not integer) for `Content-Length` header in the dashboard
+
+## 1.7.13 (2 Oct 2018)
+
+### Breaking Change
+
+- `PunditIntegration`: instead of raising `MutationAuthorizationFailed` when an argument fails authorization, it will send a `GraphQL::UnauthorizedError` to your `Schema.unauthorized_object` hook. (This is what all other authorization failures do.) To retain the previous behavior, in your base mutation, add:
+
+  ```ruby
+  def unauthorized_by_pundit(owner, value)
+    # Raise a runtime error to halt query execution
+    raise "#{value} failed #{owner}'s auth check"
+  end
+  ```
+
+  Otherwise, customize the handling of this behavior with `Schema.unauthorized_object`.
+
+### Bug Fix
+
+- Auth: mutation arguments which have authorization constraints but _don't_ load an object from the database will have _mutation instance_ passed to the auth check, not the input value.
+
+## 1.7.12 (29 Aug 2018)
+
+### New Features
+
+- Add `GraphQL::Pro::CanCanIntegration` which leverages GraphQL-Ruby's built-in auth
+
+## 1.7.11 (21 Aug 2018)
+
+### Bug Fix
+
+- `PunditIntegration`: Don't try to authorize loaded objects when they're `nil`
+
+## 1.7.10 (10 Aug 2018)
+
+### New Features
+
+- Update `PunditIntegration` for arguments, unions, interfaces and mutations
+
+## 1.7.9 (9 Aug 2018)
+
+### New Features
+
+- Add a new `PunditIntegration` which leverages the built-in authorization methods
+
+## 1.7.8 (10 July 2018)
+
+### Bug Fix
+
+- Authorization: fix scoping lists of abstract type when there's no `#scope` method on the strategy
+
+## 1.7.7 (10 May 2018)
+
+### Bug Fix
+
+- Fix ordering of authorization field instrumenter (put it at the end, not the beginning of the list)
+
 ## 1.7.6 (2 May 2018)
+
+### New Features
 
 - Authorization: Add `view`/`access`/`authorize` methods to `GraphQL::Schema::Mutation`
 

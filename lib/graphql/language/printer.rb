@@ -135,7 +135,7 @@ module GraphQL
         if (schema.query.nil? || schema.query == 'Query') &&
            (schema.mutation.nil? || schema.mutation == 'Mutation') &&
            (schema.subscription.nil? || schema.subscription == 'Subscription') &&
-           (schema.directives.none?)
+           (schema.directives.empty?)
           return
         end
 
@@ -247,14 +247,14 @@ module GraphQL
           out << print_arguments(directive.arguments)
         end
 
-        out << " on #{directive.locations.join(' | ')}"
+        out << " on #{directive.locations.map(&:name).join(' | ')}"
       end
 
       def print_description(node, indent: "", first_in_block: true)
         return ''.dup unless node.description
 
         description = indent != '' && !first_in_block ? "\n".dup : "".dup
-        description << GraphQL::Language::Comments.commentize(node.description, indent: indent)
+        description << GraphQL::Language::BlockString.print(node.description, indent: indent)
       end
 
       def print_field_definitions(fields)

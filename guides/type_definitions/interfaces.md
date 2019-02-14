@@ -1,18 +1,21 @@
 ---
 layout: guide
+doc_stub: false
 search: true
 section: Type Definitions
 title: Interfaces
 desc: Interfaces are lists of fields which objects may implement
 index: 4
 class_based_api: true
+redirect_from:
+  - /types/abstract_types/
 ---
 
 Interfaces are lists of fields which may be implemented by object types.
 
 An interface has fields, but it's never actually instantiated. Instead, objects may _implement_ interfaces, which makes them a _member_ of that interface. Also, fields may _return_ interface types. When this happens, the returned object may be any member of that interface.
 
-For example, let's say a `Customer` (interface) may be either an `Individual` (object) or a `Company` (object). Here's the structure in the [GraphQL Schema Definition Language](http://graphql.org/learn/schema/#type-language) (SDL):
+For example, let's say a `Customer` (interface) may be either an `Individual` (object) or a `Company` (object). Here's the structure in the [GraphQL Schema Definition Language](https://graphql.org/learn/schema/#type-language) (SDL):
 
 ```graphql
 interface Customer {
@@ -98,6 +101,24 @@ end
 
 Interface classes are never instantiated. At runtime, only their `.resolve_type` methods are called (if they're defined).
 
+### Implementing Variant Types
+
+To define types that implement this interface use the `implements` method:
+
+```ruby
+class Types::Car < Types::BaseObject
+  implements Types::RetailObject
+
+  # ... additional fields
+end
+
+class Types::Purse < Types::BaseObject
+  implements Types::RetailObject
+
+  # ... additional fields
+end
+```
+
 ### Implementing Fields
 
 Interfaces may provide field implementations along with the signatures. For example:
@@ -113,6 +134,8 @@ end
 
 This method will be called by objects who implement the interface. To override this implementation,
 object classes can override the `#price` method.
+
+Read more in the {% internal_link "Fields guide", "/fields/introduction" %}.
 
 ### Definition Methods
 
@@ -183,7 +206,8 @@ end
 If you add an object type which implements an interface, but that object type doesn't properly appear in your schema, then you need to add that object to the interfaces's `orphan_types`, for example:
 
 ```ruby
-class Types::RetailItem < Types::BaseInterface
+module Types::RetailItem
+  include Types::BaseInterface
   # ...
   orphan_types Types::Comment
 end

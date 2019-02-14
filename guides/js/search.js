@@ -31,7 +31,7 @@ var GraphQLRubySearch = {
           // Create a wrapper hyperlink
           var container = document.createElement("a")
           container.className = "search-result"
-          container.href = (result.rubydoc_url || result.url) + (result.css_selector_parent || "")
+          container.href = (result.rubydoc_url || result.url) + (result.anchor  ? "#" + result.anchor : "")
 
           // This helper will be used to accumulate text into the search-result
           function createSpan(text, className) {
@@ -40,16 +40,16 @@ var GraphQLRubySearch = {
             txt.innerHTML = text
             container.appendChild(txt)
           }
-
           if (result.rubydoc_url) {
             createSpan("API Doc", "search-category")
             createSpan(result.title, "search-title")
           } else {
-            createSpan("Guide", "search-category")
-            createSpan(result.unique_hierarchy, "search-title")
-            var previewLength = 120
-            var withEllipsis = result.text > previewLength
-            createSpan(result.text.substr(0, 120) + (withEllipsis ? "…" : ""), "search-preview")
+            createSpan(result.section, "search-category")
+
+            var resultHeader = [result.title].concat(result.headings).join(" > ")
+            createSpan(resultHeader, "search-title")
+            var preview = result._snippetResult.content.value
+            createSpan(preview, "search-preview")
           }
           searchResults.appendChild(container)
         })

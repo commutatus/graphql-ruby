@@ -14,7 +14,7 @@ module GraphQL
         schema = ctx.schema
         @context = ctx
 
-        @provided_variables = deep_stringify(provided_variables)
+        @provided_variables = GraphQL::Argument.deep_stringify(provided_variables)
         @errors = []
         @storage = ast_variables.each_with_object({}) do |ast_variable, memo|
           # Find the right value for this variable:
@@ -30,14 +30,20 @@ module GraphQL
             provided_value = @provided_variables[variable_name]
             value_was_provided =  @provided_variables.key?(variable_name)
 
-            validation_result = variable_type.validate_input(provided_value, ctx)
+            begin
+              validation_result = variable_type.validate_input(provided_value, ctx)
+            rescue GraphQL::CoercionError => ex
+              validation_result = GraphQL::Query::InputValidationResult.new
+              validation_result.add_problem(ex.message)
+            end
+
             if !validation_result.valid?
               # This finds variables that were required but not provided
               @errors << GraphQL::Query::VariableValidationError.new(ast_variable, variable_type, provided_value, validation_result)
             elsif value_was_provided
               # Add the variable if a value was provided
               memo[variable_name] = variable_type.coerce_input(provided_value, ctx)
-            elsif default_value
+            elsif default_value != nil
               # Add the variable if it wasn't provided but it has a default value (including `null`)
               memo[variable_name] = GraphQL::Query::LiteralInput.coerce(variable_type, default_value, self)
             end
@@ -46,23 +52,6 @@ module GraphQL
       end
 
       def_delegators :@storage, :length, :key?, :[], :fetch, :to_h
-
-      private
-
-      def deep_stringify(val)
-        case val
-        when Array
-          val.map { |v| deep_stringify(v) }
-        when Hash
-          new_val = {}
-          val.each do |k, v|
-            new_val[k.to_s] = deep_stringify(v)
-          end
-          new_val
-        else
-          val
-        end
-      end
     end
   end
 end

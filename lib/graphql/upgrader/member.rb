@@ -19,6 +19,7 @@ module GraphQL
       # Recursively transform a `.define`-DSL-based type expression into a class-ready expression, for example:
       #
       # - `types[X]` -> `[X, null: true]`
+      # - `types[X.to_non_null_type]` -> `[X]`
       # - `Int` -> `Integer`
       # - `X!` -> `X`
       #
@@ -37,6 +38,9 @@ module GraphQL
           if inner_type.start_with?("!")
             nullable = false
             inner_type = inner_type[1..-1]
+          elsif inner_type.end_with?(".to_non_null_type")
+            nullable = false
+            inner_type = inner_type[0...-17]
           else
             nullable = true
           end
@@ -356,10 +360,10 @@ module GraphQL
           # This is not good, it will hit false positives
           # Should use AST to make this substitution
           if obj_arg_name != "_"
-            proc_body.gsub!(/([^\w:.]|^)#{obj_arg_name}([^\w:]|$)/, '\1@object\2')
+            proc_body.gsub!(/([^\w:.]|^)#{obj_arg_name}([^\w:]|$)/, '\1object\2')
           end
           if ctx_arg_name != "_"
-            proc_body.gsub!(/([^\w:.]|^)#{ctx_arg_name}([^\w:]|$)/, '\1@context\2')
+            proc_body.gsub!(/([^\w:.]|^)#{ctx_arg_name}([^\w:]|$)/, '\1context\2')
           end
 
           method_defn = "def #{@proc_name}(**#{args_arg_name})\n#{method_defn_indent}  #{proc_body}\n#{method_defn_indent}end\n"
@@ -491,8 +495,8 @@ module GraphQL
           # - Get the three argument names (obj, arg, ctx)
           # - Get the proc body
           # - Find and replace:
-          #  - The ctx argument becomes `@context`
-          #  - The obj argument becomes `@object`
+          #  - The ctx argument becomes `context`
+          #  - The obj argument becomes `object`
           # - Args is trickier:
           #   - If it's not used, remove it
           #   - If it's used, abandon ship and make it `**args`
@@ -513,10 +517,10 @@ module GraphQL
           # This is not good, it will hit false positives
           # Should use AST to make this substitution
           if obj_arg_name != "_"
-            proc_body.gsub!(/([^\w:.]|^)#{obj_arg_name}([^\w:]|$)/, '\1@object\2')
+            proc_body.gsub!(/([^\w:.]|^)#{obj_arg_name}([^\w:]|$)/, '\1object\2')
           end
           if ctx_arg_name != "_"
-            proc_body.gsub!(/([^\w:.]|^)#{ctx_arg_name}([^\w:]|$)/, '\1@context\2')
+            proc_body.gsub!(/([^\w:.]|^)#{ctx_arg_name}([^\w:]|$)/, '\1context\2')
           end
 
           method_def_indent = " " * (processor.resolve_indent - 2)
@@ -647,6 +651,7 @@ module GraphQL
 
             if return_type
               non_nullable = return_type.sub! /(^|[^\[])!/, '\1'
+              non_nullable ||= return_type.sub! /([^\[])\.to_non_null_type([^\]]|$)/, '\1'
               nullable = !non_nullable
               return_type = normalize_type_expression(return_type)
             else

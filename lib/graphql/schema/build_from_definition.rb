@@ -64,9 +64,7 @@ module GraphQL
             end
           end
 
-          GraphQL::Schema::DIRECTIVES.each do |built_in_directive|
-            directives[built_in_directive.name] = built_in_directive unless directives[built_in_directive.name]
-          end
+          directives = GraphQL::Schema.default_directives.merge(directives)
 
           if schema_definition
             if schema_definition.query
@@ -113,7 +111,7 @@ module GraphQL
         end
 
         NullResolveType = ->(type, obj, ctx) {
-          raise(NotImplementedError, "Generated Schema cannot use Interface or Union types for execution.")
+          raise(NotImplementedError, "Generated Schema cannot use Interface or Union types for execution. Implement resolve_type on your resolver.")
         }
 
         NullScalarCoerce = ->(val, _ctx) { val }
@@ -237,7 +235,7 @@ module GraphQL
               **kwargs,
             )
 
-            argument.ast_node = input_object_type_definition
+            argument.ast_node = input_argument
 
             [
               input_argument.name,
@@ -251,7 +249,7 @@ module GraphQL
             name: directive_definition.name,
             description: directive_definition.description,
             arguments: Hash[build_directive_arguments(directive_definition, type_resolver)],
-            locations: directive_definition.locations.map(&:to_sym),
+            locations: directive_definition.locations.map { |location| location.name.to_sym },
           )
 
           directive.ast_node = directive_definition

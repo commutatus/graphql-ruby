@@ -1,5 +1,6 @@
 ---
 layout: guide
+doc_stub: false
 search: true
 section: GraphQL Pro
 title: Authorization Framework
@@ -8,11 +9,16 @@ index: 2
 pro: true
 ---
 
+__NOTE:__ A new {% internal_link "Pundit integration", "/authorization/pundit_integration" %} and {% internal_link "CanCan integration",
+"/authorization/can_can_integration" %} are available. They leverage GraphQL-Ruby's new {% internal_link "built-in auth", "/authorization/overview" %} system and has better support for inheritance and customization. If possible, use those instead!
+
+------
+
 `GraphQL::Pro` provides a comprehensive, unified authorization framework for the GraphQL runtime.
 
 Fields and types can be [authorized at runtime](#runtime-authorization), [rejected during validation](#access-authorization), or [hidden entirely](#visibility-authorization). Default authorization can be [applied at schema-level](#fallback-authorization)
 
-`GraphQL::Pro` integrates has out-of-the-box [Pundit support](#pundit) and [CanCan support](#cancan) and supports [custom authorization strategies](#custom-authorization-strategy)
+`GraphQL::Pro` integrates out-of-the-box [Pundit support](#pundit) and [CanCan support](#cancan) and supports [custom authorization strategies](#custom-authorization-strategy)
 
 ## Configuration
 
@@ -244,6 +250,8 @@ end
 
 ## Pundit
 
+__NOTE:__ A new {% internal_link "Pundit integration", "/authorization/pundit_integration" %} is available. It leverages GraphQL-Ruby's new {% internal_link "built-in auth", "/authorization/overview" %} system and has better support for inheritance and customization. If possible, use that one instead!
+
 `GraphQL::Pro` includes built-in support for [Pundit](https://github.com/elabs/pundit):
 
 ```ruby
@@ -307,6 +315,8 @@ When a resolve function returns an `ActiveRecord::Relation`, the policy's [`Scop
 See [Scoping](#scoping) for details.
 
 ## CanCan
+
+__NOTE:__ A new {% internal_link "CanCan integration", "/authorization/can_can_integration" %} is available. It leverages GraphQL-Ruby's new {% internal_link "built-in auth", "/authorization/overview" %} system and has better support for inheritance and customization. If possible, use that one instead!
 
 `GraphQL::Pro` includes built-in support for [CanCan](https://github.com/CanCanCommunity/cancancan):
 
@@ -409,6 +419,6 @@ For list types, each item of the list is authorized individually.
 
 Database query objects (`ActiveRecord::Relation`s and `Mongoid::Criteria`s) get special treatment. They get passed to _scope handlers_ so that they can be filtered at database level (eg, SQL `WHERE`) instead of Ruby level (eg, `.select`).
 
-`ActiveRecord::Relation`s can be scoped with SQL by authorization strategies. The Pundit integration uses [policy scopes](#policy-scopes) and the CanCan integration uses [`accessible_by`](#accessibleby). [Custom authorization strategies](#custom-authorization-strategy) can implement `#scope(gate, relation)` to apply scoping to `ActiveRecord::Relation`s.
+`ActiveRecord::Relation`s can be scoped with SQL by authorization strategies. The Pundit integration uses [policy scopes](#policy-scopes) and the CanCan integration uses [`accessible_by`](#accessible_by). [Custom authorization strategies](#custom-authorization-strategy) can implement `#scope(gate, relation)` to apply scoping to `ActiveRecord::Relation`s.
 
 `Mongoid::Criteria`s are supported in the same way by Pundit [policy scopes](#policy-scopes)) and [custom strategy]((#custom-authorization-strategy))'s  `#scope(gate, relation)` methods, but they aren't supported by CanCan (which doesn't support Mongoid, as far as I can tell!).

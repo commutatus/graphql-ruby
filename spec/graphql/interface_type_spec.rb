@@ -2,11 +2,11 @@
 require "spec_helper"
 
 describe GraphQL::InterfaceType do
-  let(:interface) { Dummy::EdibleInterface }
+  let(:interface) { Dummy::Edible.graphql_definition }
   let(:dummy_query_context) { OpenStruct.new(schema: Dummy::Schema) }
 
   it "has possible types" do
-    assert_equal([Dummy::CheeseType, Dummy::HoneyType, Dummy::MilkType], Dummy::Schema.possible_types(interface))
+    assert_equal([Dummy::Cheese.graphql_definition, Dummy::Honey.graphql_definition, Dummy::Milk.graphql_definition], Dummy::Schema.possible_types(interface))
   end
 
   describe "query evaluation" do
@@ -96,11 +96,11 @@ describe GraphQL::InterfaceType do
     it "copies orphan types without affecting the original" do
       interface = GraphQL::InterfaceType.define do
         name "AInterface"
-        orphan_types [Dummy::HoneyType]
+        orphan_types [Dummy::Honey]
       end
 
       interface_2 = interface.dup
-      interface_2.orphan_types << Dummy::CheeseType
+      interface_2.orphan_types << Dummy::Cheese
       assert_equal 1, interface.orphan_types.size
       assert_equal 2, interface_2.orphan_types.size
     end
@@ -147,6 +147,50 @@ describe GraphQL::InterfaceType do
         ]
       }
       assert_equal expected_result, result["data"]
+    end
+  end
+
+  describe "#get_possible_type" do
+    let(:query_string) {%|
+      query fav {
+        favoriteEdible { fatContent }
+      }
+    |}
+
+    let(:query) { GraphQL::Query.new(Dummy::Schema, query_string) }
+
+    it "returns the type definition if the type exists and is a possible type of the interface" do
+      assert interface.get_possible_type("Cheese", query.context)
+    end
+
+    it "returns nil if the type is not found in the schema" do
+      assert_nil interface.get_possible_type("Foo", query.context)
+    end
+
+    it "returns nil if the type is not a possible type of the interface" do
+      assert_nil interface.get_possible_type("Beverage", query.context)
+    end
+  end
+
+  describe "#possible_type?" do
+    let(:query_string) {%|
+      query fav {
+        favoriteEdible { fatContent }
+      }
+    |}
+
+    let(:query) { GraphQL::Query.new(Dummy::Schema, query_string) }
+
+    it "returns true if the type exists and is a possible type of the interface" do
+      assert interface.possible_type?("Cheese", query.context)
+    end
+
+    it "returns false if the type is not found in the schema" do
+      refute interface.possible_type?("Foo", query.context)
+    end
+
+    it "returns false if the type is not a possible type of the interface" do
+      refute interface.possible_type?("Beverage", query.context)
     end
   end
 end

@@ -6,6 +6,7 @@ module GraphQL
     # {Arguments} recursively wraps the input in {Arguments} instances.
     class Arguments
       extend Forwardable
+      include GraphQL::Dig
 
       def self.construct_arguments_class(argument_owner)
         argument_definitions = argument_owner.arguments
@@ -35,10 +36,12 @@ module GraphQL
         end
       end
 
+      attr_reader :argument_values
+
       def initialize(values, context:, defaults_used:)
         @argument_values = values.inject({}) do |memo, (inner_key, inner_value)|
           arg_name = inner_key.to_s
-          arg_defn = self.class.argument_definitions[arg_name]
+          arg_defn = self.class.argument_definitions[arg_name] || raise("Not found #{arg_name} among #{self.class.argument_definitions.keys}")
           arg_default_used = defaults_used.include?(arg_name)
           arg_value = wrap_value(inner_value, arg_defn.type, context)
           string_key = arg_defn.expose_as
@@ -165,7 +168,7 @@ module GraphQL
             memo[key] = unwrap_value(value)
             memo
           end
-        when GraphQL::Query::Arguments
+        when GraphQL::Query::Arguments, GraphQL::Schema::InputObject
           value.to_h
         else
           value
